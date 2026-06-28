@@ -1,0 +1,84 @@
+.screen {
+    box-sizing: border-box;
+    min-height: 100vh;
+    border: 1px solid #c7c7c7;
+    background: #ffffff;
+    color: #000000;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.title-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.game-title {
+    margin: 110px 0 0;
+    color: #5d5d5d;
+    font-size: 56px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.start-message {
+    margin: auto 0 130px;
+    color: #5d5d5d;
+    font-size: 64px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.top-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 52px;
+    padding: 34px 16px;
+}
+
+.menu-button {
+    width: min(74vw, 946px);
+    min-height: 108px;
+    border: 1px solid #5b5b5b;
+    border-radius: 17px;
+    background: #c9daf8;
+    color: #000000;
+    font: inherit;
+    font-size: 40px;
+    cursor: pointer;
+}
+
+.menu-button:hover {
+    background: #d6e4fb;
+}
+
+.menu-button:active {
+    background: #b7cdf3;
+}
+
+@media (max-width: 720px) {
+    .game-title {
+        margin-top: 88px;
+        font-size: 40px;
+    }
+
+    .start-message {
+        margin-bottom: 110px;
+        font-size: 36px;
+        text-align: center;
+    }
+
+    .top-screen {
+        gap: 28px;
+        padding: 28px 12px;
+    }
+
+    .menu-button {
+        width: min(92vw, 946px);
+        min-height: 84px;
+        font-size: 26px;
+    }
+}
