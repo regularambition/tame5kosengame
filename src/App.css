@@ -24,11 +24,25 @@
 }
 
 .start-message {
-    margin: auto 0 130px;
+    margin: 0;
     color: #5d5d5d;
     font-size: 64px;
     font-weight: 400;
     letter-spacing: 0;
+}
+
+.title-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    margin: auto 0 110px;
+}
+
+.title-error {
+    margin: 0;
+    color: #d60000;
+    font-size: 24px;
 }
 
 .top-screen {
@@ -59,6 +73,87 @@
     background: #b7cdf3;
 }
 
+.user-name-screen {
+    display: flex;
+    justify-content: center;
+    padding: 92px 16px;
+}
+
+.user-name-form {
+    display: flex;
+    width: min(72vw, 914px);
+    flex-direction: column;
+    align-items: center;
+}
+
+.user-name-title {
+    margin: 0;
+    color: #5d5d5d;
+    font-size: 64px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.user-name-note {
+    margin: 18px 0 66px;
+    color: #ff0000;
+    font-size: 32px;
+    line-height: 1.28;
+    text-align: center;
+}
+
+.user-name-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 108px;
+    border: 1px solid #5b5b5b;
+    border-radius: 17px;
+    padding: 0 28px;
+    background: #ffffff;
+    color: #000000;
+    font: inherit;
+    font-size: 44px;
+    outline: none;
+}
+
+.user-name-input:focus {
+    border-color: #2d5fa7;
+}
+
+.user-name-error {
+    min-height: 30px;
+    margin: 14px 0 0;
+    color: #d60000;
+    font-size: 22px;
+}
+
+.user-name-submit {
+    width: min(100%, 496px);
+    min-height: 108px;
+    margin-top: 68px;
+    border: 1px solid #5b5b5b;
+    border-radius: 17px;
+    background: #c9daf8;
+    color: #000000;
+    font: inherit;
+    font-size: 40px;
+    cursor: pointer;
+}
+
+.user-name-submit:hover:not(:disabled) {
+    background: #d6e4fb;
+}
+
+.user-name-submit:active:not(:disabled) {
+    background: #b7cdf3;
+}
+
+.user-name-submit:disabled,
+.user-name-input:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
 @media (max-width: 720px) {
     .game-title {
         margin-top: 88px;
@@ -66,8 +161,17 @@
     }
 
     .start-message {
-        margin-bottom: 110px;
         font-size: 36px;
+        text-align: center;
+    }
+
+    .title-status {
+        margin-bottom: 90px;
+    }
+
+    .title-error {
+        max-width: 88vw;
+        font-size: 18px;
         text-align: center;
     }
 
@@ -80,5 +184,33 @@
         width: min(92vw, 946px);
         min-height: 84px;
         font-size: 26px;
+    }
+
+    .user-name-screen {
+        padding-top: 72px;
+    }
+
+    .user-name-form {
+        width: min(92vw, 914px);
+    }
+
+    .user-name-title {
+        font-size: 40px;
+    }
+
+    .user-name-note {
+        margin: 16px 0 48px;
+        font-size: 22px;
+    }
+
+    .user-name-input {
+        height: 82px;
+        font-size: 30px;
+    }
+
+    .user-name-submit {
+        min-height: 82px;
+        margin-top: 52px;
+        font-size: 30px;
     }
 }
