@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import './App.css'
 import { signInAnonymously } from 'firebase/auth'
-import { httpsCallable } from 'firebase/functions'
 import { get, ref, serverTimestamp, set } from 'firebase/database'
 import { TitleScreen } from './components/TitleScreen'
 import { TopScreen } from './components/TopScreen'
 import { UserNameScreen } from './components/UserNameScreen'
 import { auth, database } from './firebase'
+import { fetchUserInfo } from './api/fetchUserInfo'
+import { updateUserName } from './api/updateUserName'
 
 const SCREEN_NAMES = {
     TITLE: 'title',
@@ -30,10 +31,18 @@ function App() {
             setIsAuthenticating(true)
             setAuthError('')
 
-            const { user } = await signInAnonymously(auth)
-            const userSnapshot = await get(ref(database, `users/${user.uid}`))
+            // const { user } = await signInAnonymously(auth)
+            // const userSnapshot = await get(ref(database, `users/${user.uid}`))
+            // setScreen(userSnapshot.exists() ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME)
 
-            setScreen(userSnapshot.exists() ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME)
+            await signInAnonymously(auth)
+
+            console.log("anonymous signin finished!")
+
+            const userInfo = await fetchUserInfo()
+            console.log("fetchUserInfo finished!")
+            console.log(userInfo)
+            setScreen(userInfo.data.exists ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME)
         } catch {
             setAuthError('認証に失敗しました。もう一度クリックしてください')
         } finally {
@@ -50,10 +59,12 @@ function App() {
             return
         }
 
-        await set(ref(database, `users/${currentUser.uid}`), {
-            name,
-            createdAt: serverTimestamp(),
-        })
+        // await set(ref(database, `users/${currentUser.uid}`), {
+        //     name,
+        //     createdAt: serverTimestamp(),
+        // })
+        updateUserName(name)
+        console.log("updateUserName finished!")
         setScreen(SCREEN_NAMES.TOP)
     }
 

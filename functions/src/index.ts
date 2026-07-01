@@ -8,6 +8,9 @@
  */
 
 import {setGlobalOptions} from "firebase-functions";
+
+import {fetchUserInfo, updateUserName} from "./auth/anonymousSignin";
+
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
 
@@ -26,7 +29,6 @@ import {setGlobalOptions} from "firebase-functions";
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+export {
+  fetchUserInfo, updateUserName,
+};
