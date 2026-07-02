@@ -1,6 +1,9 @@
 ## 開発環境
 
 - Node.js 22.x
+- TypeScript 5.x.x
+- Vite
+- React
 - VSCode
 - Prettier
 - ESLint
@@ -14,10 +17,9 @@
 ### ワークスペース設定
 
 - .github/workflows/deploy.yml → コミット時にGitHub Pagesで動作するようにビルド
-- .vscode/settings.json
-- .vscode/settings.json
-- .vscode/settings.json
-- .vscode/settings.json
-- 
+- .vscode/settings.json → VSCodeでファイルを保存した時の自動処理など(Cloud Functions向けリソースがプロジェクトルートではなくサブディレクトリのfunctionsにあるためESLintと噛み合わせるには"eslint.workingDirectories": ["functions"]が必須)
+- .editorconfig → 上と揃うように
+- .gitattributes → Cloud Functionsを使うためESLintとの兼ね合いで改行文字は絶対にLFである必要あり
+- .prettierrc → 写経(特に"bracketSpacing": falseが重要)
 
-Open the repository root in VSCode to enable automatic formatting and ESLint.
+自動フォーマットとESLintを有効化すべくVSCodeではプロジェクトルートを開くこと
