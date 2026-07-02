@@ -3,6 +3,8 @@ import {ServerValue} from "firebase-admin/database";
 
 import {db} from "../firebaseAdmin";
 
+import {isValidUserName} from "@tame5kosengame/shared";
+
 export const fetchUserInfo = onCall(async (request) => {
   // Firebase Authenticationでログイン済みか確認
   if (!request.auth) {
@@ -44,7 +46,7 @@ export const updateUserName = onCall(async (request) => {
   const uid = request.auth.uid;
   const name = request.data.name;
 
-  if (typeof name !== "string") {
+  if (typeof name !== "string" || !isValidUserName(name)) {
     throw new HttpsError("invalid-argument", "Invalid name.");
   }
 

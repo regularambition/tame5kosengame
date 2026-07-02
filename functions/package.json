@@ -4,7 +4,8 @@
     "lint": "eslint --ext .js,.ts .",
     "lint:fix": "eslint --ext .js,.ts . --fix",
     "format": "prettier --write .",
-    "build": "tsc",
+    "build:shared": "npm --prefix ../shared run build",
+    "build": "npm run build:shared && tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
@@ -21,6 +22,7 @@
     "firebase-functions": "^7.0.0"
   },
   "devDependencies": {
+    "@tame5kosengame/shared": "file:../shared",
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
     "eslint": "^8.57.1",

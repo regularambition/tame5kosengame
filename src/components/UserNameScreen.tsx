@@ -1,6 +1,6 @@
 import {useState} from "react";
 
-const USER_NAME_PATTERN = /^[A-Za-z0-9]{1,16}$/;
+import {isValidUserName} from "@tame5kosengame/shared";
 
 type UserNameScreenProps = {
   onSubmit: (name: string) => Promise<void>;
@@ -12,7 +12,7 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
   const [error, setError] = useState("");
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextName = event.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+    const nextName = event.target.value.slice(0, 16);
     setName(nextName);
     setError("");
   };
@@ -20,7 +20,7 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!USER_NAME_PATTERN.test(name)) {
+    if (!isValidUserName(name)) {
       setError("16文字以内の半角英数字で入力してください");
       return;
     }
