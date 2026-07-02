@@ -29,6 +29,4 @@ import {fetchUserInfo, updateUserName} from "./auth/anonymousSignin";
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 
-export {
-  fetchUserInfo, updateUserName,
-};
+export {fetchUserInfo, updateUserName};

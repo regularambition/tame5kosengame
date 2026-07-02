@@ -9,10 +9,7 @@ initializeApp();
 export const fetchUserInfo = onCall(async (request) => {
   // Firebase Authenticationでログイン済みか確認
   if (!request.auth) {
-    throw new HttpsError(
-      "unauthenticated",
-      "Authentication required."
-    );
+    throw new HttpsError("unauthenticated", "Authentication required.");
   }
 
   const uid = request.auth.uid;
@@ -44,20 +41,14 @@ export const fetchUserInfo = onCall(async (request) => {
 
 export const updateUserName = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError(
-      "unauthenticated",
-      "Authentication required."
-    );
+    throw new HttpsError("unauthenticated", "Authentication required.");
   }
 
   const uid = request.auth.uid;
   const name = request.data.name;
 
   if (typeof name !== "string") {
-    throw new HttpsError(
-      "invalid-argument",
-      "Invalid name."
-    );
+    throw new HttpsError("invalid-argument", "Invalid name.");
   }
 
   db.ref(`users/${uid}/name`).set(name);
