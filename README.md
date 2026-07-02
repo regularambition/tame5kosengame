@@ -1,13 +1,17 @@
 ## 開発環境
 
 - Node.js 22.x
-- TypeScript 5.x.x
-- Vite
-- React
+- Vite + React + TypeScript 5.x.x
 - VSCode
 - Prettier
 - ESLint
 - EditorConfig
+- Google Cloud (Firebase, Realtime Database, Cloud Functions)
+
+### Node.js のバージョン参考情報(バージョン確認コマンドの実行結果)
+
+- npm -v → 10.9.4
+- node -v → v22.22.0
 
 ### 入れるべきVSCodeの拡張機能(カッコ内は識別子)
 
