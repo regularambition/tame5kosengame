@@ -1,4 +1,6 @@
 {
+  "name": "tame5kosengame",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

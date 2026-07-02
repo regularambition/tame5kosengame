@@ -1,10 +1,7 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {initializeApp} from "firebase-admin/app";
 import {ServerValue} from "firebase-admin/database";
 
-import {db} from "../realtimeDatabase/commonReference";
-
-initializeApp();
+import {db} from "../firebaseAdmin";
 
 export const fetchUserInfo = onCall(async (request) => {
   // Firebase Authenticationでログイン済みか確認

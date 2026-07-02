@@ -42,15 +42,20 @@
 
 firebase deploy --only functions
 
-※不安な場合は事前に以下の2コマンドを叩いてエラーが出なければ問題なし(前者は
-SUPPORTED TYPESCRIPT VERSIONS: >=3.3.1 <5.2.0
-YOUR TYPESCRIPT VERSION: 5.9.3
-という警告が出ていたがこれだけならば問題なし)
+※不安な場合は事前に以下の2コマンドを叩いてエラーが出なければ問題なし
 
-- npm run lint
 - npm run build
+- npm run lint
 
-### localhostで動作テスト(プロジェクトルート/sharedで実行)
+### localhostで動作テスト(プロジェクトルートで実行)
 
 - npm run build
 - npm run dev
+
+### git clone の直後やpackage-lock.jsonの内容が変わったら実行
+
+npm install
+
+※node_modulesを削除してから再実行しても通らない場合はnpmの古いキャッシュが原因の場合があるため以下を実行
+
+npm cache clean --force
