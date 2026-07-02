@@ -29,19 +29,28 @@
 自動フォーマットとESLintを有効化すべくVSCodeではプロジェクトルートを開くこと
 
 ## 基本的な作業コマンド
+
 ### Git操作([R]はプロジェクトルートで実行)
+
 - [R]ワーキングツリーの状態確認 → git status
 - [R]リモートリポジトリから最新リソースを取得 → git pull
 - [R]ブランチ一覧表示 → git branch
 - [R]作業ブランチ切り替え → git switch {branchName}
 - ローカルでの編集を取り消す → git checkout {fileName}
 
-### Cloud Functions向けリソースのデプロイ({projectRoot}/functionsで実行)
+### Cloud Functions向けリソースのデプロイ(プロジェクトルート/functionsで実行)
+
 firebase deploy --only functions
 
 ※不安な場合は事前に以下の2コマンドを叩いてエラーが出なければ問題なし(前者は
 SUPPORTED TYPESCRIPT VERSIONS: >=3.3.1 <5.2.0
 YOUR TYPESCRIPT VERSION: 5.9.3
 という警告が出ていたがこれだけならば問題なし)
+
 - npm run lint
 - npm run build
+
+### localhostで動作テスト(プロジェクトルート/sharedで実行)
+
+- npm run build
+- npm run dev
