@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getDatabase } from 'firebase/database'
+import { getFunctions } from 'firebase/functions'
+import { httpsCallable } from "firebase/functions"
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,3 +18,11 @@ const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
 export const database = getDatabase(app)
+
+/** 
+ * Cloud Functionsで動く処理の集まり
+*/
+export const functions = getFunctions(app)
+export function getCallableFunction<ARG, RET>(functionName: string) {
+    return httpsCallable<ARG, RET>(functions, functionName)
+}
