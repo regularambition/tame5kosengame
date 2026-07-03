@@ -1,4 +1,8 @@
-export function TopScreen() {
+type TopScreenProps = {
+  onSettingsClick: () => void;
+};
+
+export function TopScreen({onSettingsClick}: TopScreenProps) {
   return (
     <main className="screen top-screen">
       <button className="menu-button" type="button">
@@ -10,7 +14,7 @@ export function TopScreen() {
       <button className="menu-button" type="button">
         ゲームのルールを確認
       </button>
-      <button className="menu-button" type="button">
+      <button className="menu-button" onClick={onSettingsClick} type="button">
         設定の変更
       </button>
     </main>

@@ -1,11 +1,11 @@
 import {useState} from "react";
 import "./App.css";
 import {signInAnonymously} from "firebase/auth";
-import {get, ref, serverTimestamp, set} from "firebase/database";
 import {TitleScreen} from "./components/TitleScreen";
 import {TopScreen} from "./components/TopScreen";
 import {UserNameScreen} from "./components/UserNameScreen";
-import {auth, database} from "./firebase";
+import {SettingsScreen} from "./components/SettingsScreen";
+import {auth} from "./firebase";
 import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
 
@@ -13,6 +13,7 @@ const SCREEN_NAMES = {
   TITLE: "title",
   USER_NAME: "userName",
   TOP: "top",
+  SETTINGS: "settings",
 } as const;
 
 type Screen = (typeof SCREEN_NAMES)[keyof typeof SCREEN_NAMES];
@@ -30,10 +31,6 @@ function App() {
     try {
       setIsAuthenticating(true);
       setAuthError("");
-
-      // const { user } = await signInAnonymously(auth)
-      // const userSnapshot = await get(ref(database, `users/${user.uid}`))
-      // setScreen(userSnapshot.exists() ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME)
 
       await signInAnonymously(auth);
 
@@ -59,10 +56,6 @@ function App() {
       return;
     }
 
-    // await set(ref(database, `users/${currentUser.uid}`), {
-    //     name,
-    //     createdAt: serverTimestamp(),
-    // })
     await updateUserName(name);
     console.log("updateUserName finished!");
     setScreen(SCREEN_NAMES.TOP);
@@ -76,7 +69,11 @@ function App() {
     return <UserNameScreen onSubmit={handleRegisterName} />;
   }
 
-  return <TopScreen />;
+  if (screen === SCREEN_NAMES.SETTINGS) {
+    return <SettingsScreen onBack={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
+  return <TopScreen onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)} />;
 }
 
 export default App;
