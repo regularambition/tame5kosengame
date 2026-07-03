@@ -1,6 +1,6 @@
 import {useState} from "react";
 
-const USER_NAME_PATTERN = /^[A-Za-z0-9]{1,16}$/;
+import {isValidUserName, USER_NAME_RULES} from "@tame5kosengame/shared";
 
 type UserNameScreenProps = {
   onSubmit: (name: string) => Promise<void>;
@@ -11,17 +11,19 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextName = event.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+  const handleChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const nextName = event.target.value.slice(0, USER_NAME_RULES.MAX_LENGTH);
     setName(nextName);
     setError("");
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
 
-    if (!USER_NAME_PATTERN.test(name)) {
-      setError("16文字以内の半角英数字で入力してください");
+    if (!isValidUserName(name)) {
+      setError(
+        `${USER_NAME_RULES.MIN_LENGTH}文字以上${USER_NAME_RULES.MAX_LENGTH}文字以下の半角英数字で入力してください`,
+      );
       return;
     }
 
@@ -39,7 +41,7 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
       <form className="user-name-form" onSubmit={handleSubmit}>
         <h1 className="user-name-title">ユーザー名を入力</h1>
         <p className="user-name-note">
-          ※16文字以内の半角英大文字・小文字・
+          ※{USER_NAME_RULES.MAX_LENGTH}文字以内の半角英大文字・小文字・
           <br />
           アラビア数字でのみ入力可能
         </p>
@@ -47,7 +49,7 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
           aria-label="ユーザー名"
           className="user-name-input"
           disabled={isSubmitting}
-          maxLength={16}
+          maxLength={USER_NAME_RULES.MAX_LENGTH}
           onChange={handleChange}
           type="text"
           value={name}

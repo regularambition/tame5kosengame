@@ -6,7 +6,7 @@ import {TitleScreen} from "./components/TitleScreen";
 import {TopScreen} from "./components/TopScreen";
 import {UserNameScreen} from "./components/UserNameScreen";
 import {auth, database} from "./firebase";
-import {fetchUserInfo} from "./api/fetchUserInfo";
+import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
 
 const SCREEN_NAMES = {
@@ -39,10 +39,10 @@ function App() {
 
       console.log("anonymous signin finished!");
 
-      const userInfo = await fetchUserInfo();
-      console.log("fetchUserInfo finished!");
-      console.log(userInfo);
-      setScreen(userInfo.data.exists ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
+      const userProfile = await ensureUserProfile();
+      console.log("ensureUserProfile finished!");
+      console.log(userProfile);
+      setScreen(userProfile.data.alreadyRegistered ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
     } catch {
       setAuthError("認証に失敗しました。もう一度クリックしてください");
     } finally {
