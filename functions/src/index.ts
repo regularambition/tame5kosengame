@@ -9,7 +9,7 @@
 
 import {setGlobalOptions} from "firebase-functions";
 
-import {fetchUserInfo, updateUserName} from "./auth/anonymousSignin";
+import {ensureUserProfile, updateUserName} from "./auth/anonymousSignin";
 
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
@@ -29,4 +29,4 @@ import {fetchUserInfo, updateUserName} from "./auth/anonymousSignin";
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 
-export {fetchUserInfo, updateUserName};
+export {ensureUserProfile, updateUserName};

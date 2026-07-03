@@ -5,7 +5,7 @@ import {db} from "../firebaseAdmin";
 
 import {isValidUserName} from "@tame5kosengame/shared";
 
-export const fetchUserInfo = onCall(async (request) => {
+export const ensureUserProfile = onCall(async (request) => {
   // Firebase Authenticationでログイン済みか確認
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");

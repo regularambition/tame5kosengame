@@ -6,7 +6,7 @@ import {TitleScreen} from "./components/TitleScreen";
 import {TopScreen} from "./components/TopScreen";
 import {UserNameScreen} from "./components/UserNameScreen";
 import {auth, database} from "./firebase";
-import {fetchUserInfo} from "./api/fetchUserInfo";
+import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
 
 const SCREEN_NAMES = {
@@ -39,8 +39,8 @@ function App() {
 
       console.log("anonymous signin finished!");
 
-      const userInfo = await fetchUserInfo();
-      console.log("fetchUserInfo finished!");
+      const userInfo = await ensureUserProfile();
+      console.log("ensureUserProfile finished!");
       console.log(userInfo);
       setScreen(userInfo.data.exists ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
     } catch {
