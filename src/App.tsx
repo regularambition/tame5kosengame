@@ -63,7 +63,7 @@ function App() {
     //     name,
     //     createdAt: serverTimestamp(),
     // })
-    updateUserName(name);
+    await updateUserName(name);
     console.log("updateUserName finished!");
     setScreen(SCREEN_NAMES.TOP);
   };
