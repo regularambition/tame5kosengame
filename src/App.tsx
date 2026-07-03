@@ -39,10 +39,10 @@ function App() {
 
       console.log("anonymous signin finished!");
 
-      const userInfo = await ensureUserProfile();
+      const userProfile = await ensureUserProfile();
       console.log("ensureUserProfile finished!");
-      console.log(userInfo);
-      setScreen(userInfo.data.exists ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
+      console.log(userProfile);
+      setScreen(userProfile.data.alreadyRegistered ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
     } catch {
       setAuthError("認証に失敗しました。もう一度クリックしてください");
     } finally {

@@ -1,13 +1,6 @@
 import {getCallableFunction} from "../firebase";
 
-export interface EnsureUserProfileResponse {
-  exists: boolean;
-  user: {
-    uid: string;
-    name: string;
-    createdAt: number;
-  };
-}
+import type {EnsureUserProfileResponse} from "@tame5kosengame/shared";
 
 export async function ensureUserProfile() {
   const func = getCallableFunction<void, EnsureUserProfileResponse>("ensureUserProfile");

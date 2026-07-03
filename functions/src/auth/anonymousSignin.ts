@@ -4,8 +4,9 @@ import {ServerValue} from "firebase-admin/database";
 import {db} from "../firebaseAdmin";
 
 import {isValidUserName} from "@tame5kosengame/shared";
+import type {EnsureUserProfileResponse, UpdateUserNameRequest} from "@tame5kosengame/shared";
 
-export const ensureUserProfile = onCall(async (request) => {
+export const ensureUserProfile = onCall(async (request): Promise<EnsureUserProfileResponse> => {
   // Firebase Authenticationでログイン済みか確認
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");
@@ -18,8 +19,7 @@ export const ensureUserProfile = onCall(async (request) => {
   // 既に登録済み
   if (snapshot.exists()) {
     return {
-      exists: true,
-      user: snapshot.val(),
+      alreadyRegistered: true,
     };
   }
 
@@ -33,18 +33,17 @@ export const ensureUserProfile = onCall(async (request) => {
   await userRef.set(initialUser);
 
   return {
-    exists: false,
-    user: initialUser,
+    alreadyRegistered: false,
   };
 });
 
-export const updateUserName = onCall(async (request) => {
+export const updateUserName = onCall<UpdateUserNameRequest>(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
 
   const uid = request.auth.uid;
-  const name = request.data.name;
+  const {name} = request.data;
 
   if (typeof name !== "string" || !isValidUserName(name)) {
     throw new HttpsError("invalid-argument", "Invalid name.");

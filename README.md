@@ -59,3 +59,9 @@ npm install
 ※node_modulesを削除してから再実行しても通らない場合はnpmの古いキャッシュが原因の場合があるため以下を実行
 
 npm cache clean --force
+
+### shared下の既存リソースを修正したり新規リソースを追加したりした場合に実行(プロジェクトルート/functionsで実行)
+
+npm run sync:shared
+
+※functions側から参照できるためには.local-packages\tame5kosengame-shared-0.0.0.tgzが最新のsharedリソースになっている必要あり
