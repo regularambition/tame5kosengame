@@ -5,6 +5,7 @@ import {TitleScreen} from "./components/TitleScreen";
 import {TopScreen} from "./components/TopScreen";
 import {UserNameScreen} from "./components/UserNameScreen";
 import {SettingsScreen} from "./components/SettingsScreen";
+import {RuleScreen} from "./components/RuleScreen";
 import {auth} from "./firebase";
 import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
@@ -14,6 +15,7 @@ const SCREEN_NAMES = {
   USER_NAME: "userName",
   TOP: "top",
   SETTINGS: "settings",
+  RULES: "rules",
 } as const;
 
 type Screen = (typeof SCREEN_NAMES)[keyof typeof SCREEN_NAMES];
@@ -73,7 +75,16 @@ function App() {
     return <SettingsScreen onBack={() => setScreen(SCREEN_NAMES.TOP)} />;
   }
 
-  return <TopScreen onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)} />;
+  if (screen === SCREEN_NAMES.RULES) {
+    return <RuleScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
+  return (
+    <TopScreen
+      onRulesClick={() => setScreen(SCREEN_NAMES.RULES)}
+      onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
+    />
+  );
 }
 
 export default App;

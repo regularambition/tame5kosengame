@@ -314,6 +314,184 @@
   background: #b7cdf3;
 }
 
+.rule-screen {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 50px 24px;
+  color: #eeeeee;
+}
+
+.rule-header {
+  display: grid;
+  width: min(100%, 840px);
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+}
+
+.rule-title {
+  grid-column: 2;
+  margin: 0;
+  color: #eeeeee;
+  font-size: 64px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.rule-page-count {
+  grid-column: 3;
+  justify-self: center;
+  margin: 0;
+  color: #eeeeee;
+  font-size: 64px;
+  line-height: 1.1;
+}
+
+.rule-page-content {
+  display: flex;
+  width: min(100%, 960px);
+  min-height: 410px;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.rule-page-text {
+  gap: 34px;
+  font-size: 40px;
+  line-height: 1.35;
+}
+
+.rule-page-text p {
+  margin: 0;
+}
+
+.rule-section-title {
+  margin: 0 0 24px;
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.rule-hand-page {
+  align-items: center;
+}
+
+.rule-hand-detail {
+  display: grid;
+  width: min(100%, 780px);
+  grid-template-columns: minmax(180px, 300px) minmax(0, 1fr);
+  align-items: center;
+  gap: 46px;
+}
+
+.rule-hand-detail-image {
+  display: block;
+  width: 100%;
+  min-height: 400px;
+  max-height: 480px;
+  object-fit: contain;
+}
+
+.rule-hand-detail-text h3 {
+  margin: 0 0 24px;
+  font-size: 40px;
+  font-weight: 400;
+}
+
+.rule-hand-detail-text p {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.4;
+}
+
+.rule-matchup-page {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 45px;
+}
+
+.rule-matchup-table {
+  border-collapse: collapse;
+  color: #eeeeee;
+  font-size: 26px;
+  text-align: center;
+}
+
+.rule-matchup-table th,
+.rule-matchup-table td {
+  width: 92px;
+  height: 64px;
+  border: 1px solid #b8b8b8;
+  padding: 4px;
+  font-weight: 400;
+}
+
+.rule-matchup-table .rule-matchup-empty {
+  border: none;
+}
+
+.rule-matchup-side {
+  height: 42px;
+}
+
+.rule-matchup-self-side {
+  width: 58px;
+  line-height: 1.2;
+}
+
+.rule-matchup-hand-image {
+  display: block;
+  width: 72px;
+  height: 82px;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.rule-actions {
+  display: grid;
+  width: min(100%, 1010px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px 56px;
+  margin-top: 20px;
+}
+
+.rule-action-button,
+.rule-top-button {
+  min-height: 64px;
+  border: 1px solid #5b5b5b;
+  border-radius: 10px;
+  background: #c9daf8;
+  color: #000000;
+  font: inherit;
+  font-size: 36px;
+  cursor: pointer;
+}
+
+.rule-top-button {
+  grid-column: 1 / -1;
+  width: min(100%, 796px);
+  justify-self: center;
+}
+
+.rule-action-button:hover:not(:disabled),
+.rule-top-button:hover {
+  background: #d6e4fb;
+}
+
+.rule-action-button:active:not(:disabled),
+.rule-top-button:active {
+  background: #b7cdf3;
+}
+
+.rule-action-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 @media (max-width: 720px) {
   .game-title {
     margin-top: 88px;
@@ -426,5 +604,94 @@
   .settings-action-button {
     min-height: 72px;
     font-size: 23px;
+  }
+
+  .rule-screen {
+    padding: 18px 14px 24px;
+  }
+
+  .rule-header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .rule-title {
+    grid-column: 1;
+    justify-self: end;
+    font-size: 40px;
+  }
+
+  .rule-page-count {
+    grid-column: 2;
+    justify-self: end;
+    margin-left: 24px;
+    font-size: 40px;
+  }
+
+  .rule-page-content {
+    min-height: 430px;
+  }
+
+  .rule-page-text {
+    gap: 22px;
+    font-size: 25px;
+  }
+
+  .rule-section-title {
+    margin-bottom: 18px;
+    font-size: 28px;
+  }
+
+  .rule-hand-detail {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 22px;
+  }
+
+  .rule-hand-detail-image {
+    max-height: 210px;
+  }
+
+  .rule-hand-detail-text {
+    text-align: center;
+  }
+
+  .rule-hand-detail-text h3 {
+    margin-bottom: 14px;
+    font-size: 30px;
+  }
+
+  .rule-hand-detail-text p {
+    font-size: 24px;
+  }
+
+  .rule-matchup-table {
+    font-size: 18px;
+  }
+
+  .rule-matchup-table th,
+  .rule-matchup-table td {
+    width: 52px;
+    height: 46px;
+    padding: 2px;
+  }
+
+  .rule-matchup-self-side {
+    width: 34px;
+  }
+
+  .rule-matchup-hand-image {
+    width: 34px;
+    height: 34px;
+  }
+
+  .rule-actions {
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .rule-action-button,
+  .rule-top-button {
+    min-height: 58px;
+    font-size: 22px;
   }
 }
