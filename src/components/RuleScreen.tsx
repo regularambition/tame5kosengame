@@ -14,29 +14,33 @@ type HandEffect = {
 
 const HAND_EFFECTS: HandEffect[] = [
   {
-    handId: "CHARGE",
-    title: "チャージ",
-    description: "自分のマナを1だけ増やす",
+    handId: HANDS.CHARGE.id,
+    title: HANDS.CHARGE.label,
+    description: HANDS.CHARGE.description,
   },
   {
-    handId: "DEFENSE",
-    title: "防御",
-    description: "相手の攻撃から身を守る",
+    handId: HANDS.DEFENSE.id,
+    title: HANDS.DEFENSE.label,
+    description: HANDS.DEFENSE.description,
   },
   {
-    handId: "ATTACK",
-    title: "攻撃",
-    description: "1マナを消費して相手に攻撃を仕掛ける",
+    handId: HANDS.ATTACK.id,
+    title: HANDS.ATTACK.label,
+    description: HANDS.ATTACK.description,
   },
   {
-    handId: "BEAM",
-    title: "光線",
-    description:
-      "5マナを消費して防御不可能な光線で攻撃（この手で勝利した場合、1点ではなく2点獲得）",
+    handId: HANDS.BEAM.id,
+    title: HANDS.BEAM.label,
+    description: HANDS.BEAM.description,
   },
 ];
 
-const MATCHUP_HAND_IDS: HandId[] = ["CHARGE", "DEFENSE", "ATTACK", "BEAM"];
+const MATCHUP_HAND_IDS: HandId[] = [
+  HANDS.CHARGE.id,
+  HANDS.DEFENSE.id,
+  HANDS.ATTACK.id,
+  HANDS.BEAM.id,
+];
 
 const MATCHUP_RESULTS: Record<HandId, Record<HandId, string>> = {
   ATTACK: {
