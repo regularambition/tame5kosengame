@@ -131,28 +131,6 @@
   font-size: 22px;
 }
 
-.user-name-submit {
-  width: min(100%, 496px);
-  min-height: 108px;
-  margin-top: 68px;
-  border: 1px solid #5b5b5b;
-  border-radius: 17px;
-  background: #c9daf8;
-  color: #000000;
-  font: inherit;
-  font-size: 40px;
-  cursor: pointer;
-}
-
-.user-name-submit:hover:not(:disabled) {
-  background: #d6e4fb;
-}
-
-.user-name-submit:active:not(:disabled) {
-  background: #b7cdf3;
-}
-
-.user-name-submit:disabled,
 .user-name-input:disabled {
   opacity: 0.65;
   cursor: wait;
@@ -315,12 +293,19 @@
 }
 
 .rule-screen {
+  position: relative;
   display: flex;
   min-height: 100vh;
   flex-direction: column;
   align-items: center;
   padding: 18px 50px 24px;
   color: #eeeeee;
+}
+
+.rule-back-button {
+  position: absolute;
+  top: 36px;
+  left: 36px;
 }
 
 .rule-header {
@@ -546,12 +531,6 @@
     font-size: 30px;
   }
 
-  .user-name-submit {
-    min-height: 82px;
-    margin-top: 52px;
-    font-size: 30px;
-  }
-
   .settings-screen {
     padding: 18px 14px 24px;
   }
@@ -608,6 +587,13 @@
 
   .rule-screen {
     padding: 18px 14px 24px;
+  }
+
+  .rule-back-button {
+    top: 18px;
+    left: 14px;
+    width: 72px;
+    height: 72px;
   }
 
   .rule-header {

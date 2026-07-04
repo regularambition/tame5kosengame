@@ -1,6 +1,8 @@
 import {useState} from "react";
 
 import {isValidUserName, USER_NAME_RULES} from "@tame5kosengame/shared";
+import {Button} from "./ui/Button";
+import "./UserNameScreen.css";
 
 type UserNameScreenProps = {
   onSubmit: (name: string) => Promise<void>;
@@ -55,9 +57,10 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
           value={name}
         />
         {error && <p className="user-name-error">{error}</p>}
-        <button className="user-name-submit" disabled={isSubmitting} type="submit">
+        <Button disabled={isSubmitting}>決定</Button>
+        {/* <button className="user-name-submit" disabled={isSubmitting} type="submit">
           決定
-        </button>
+        </button> */}
       </form>
     </main>
   );

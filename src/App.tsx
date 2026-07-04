@@ -16,6 +16,7 @@ const SCREEN_NAMES = {
   TOP: "top",
   SETTINGS: "settings",
   RULES: "rules",
+  ENTRANCE: "entrace",
 } as const;
 
 type Screen = (typeof SCREEN_NAMES)[keyof typeof SCREEN_NAMES];
@@ -81,6 +82,7 @@ function App() {
 
   return (
     <TopScreen
+      onEntranceClick={() => setScreen(SCREEN_NAMES.ENTRANCE)}
       onRulesClick={() => setScreen(SCREEN_NAMES.RULES)}
       onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
     />

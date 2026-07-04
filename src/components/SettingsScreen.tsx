@@ -1,6 +1,9 @@
 import {useState} from "react";
 
 import {USER_NAME_RULES} from "@tame5kosengame/shared";
+import {IconButton} from "../components/ui/IconButton";
+import {Button, BUTTON_SHAPE_TYPE} from "../components/ui/Button";
+import {ButtonRow} from "../components/ui/ButtonRow";
 
 type SettingsScreenProps = {
   onBack: () => void;
@@ -67,17 +70,15 @@ export function SettingsScreen({onBack}: SettingsScreenProps) {
         </h2>
         <div className="settings-icon-grid">
           {USER_ICONS.map((icon) => (
-            <button
-              aria-label={icon.label}
+            <IconButton
               aria-pressed={selectedIconId === icon.id}
               className="settings-icon-button"
               data-selected={selectedIconId === icon.id}
+              iconSrc={icon.src}
               key={icon.id}
+              label={icon.label}
               onClick={() => setSelectedIconId(icon.id)}
-              type="button"
-            >
-              <img className="settings-icon-image" src={icon.src} alt="" />
-            </button>
+            />
           ))}
         </div>
       </section>
@@ -111,14 +112,12 @@ export function SettingsScreen({onBack}: SettingsScreenProps) {
         </div>
       </section>
 
-      <div className="settings-actions">
-        <button className="settings-action-button" onClick={onBack} type="button">
+      <ButtonRow>
+        <Button onClick={onBack} type="button">
           変更せず戻る
-        </button>
-        <button className="settings-action-button" type="button">
-          変更内容を確定
-        </button>
-      </div>
+        </Button>
+        <Button type="button">変更内容を確定</Button>
+      </ButtonRow>
     </main>
   );
 }

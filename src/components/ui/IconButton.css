@@ -1,0 +1,30 @@
+.icon-button {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background-color: salmon;
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.icon-button:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.icon-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.icon-button-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

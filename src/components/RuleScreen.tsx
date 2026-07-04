@@ -1,5 +1,10 @@
 import {useState} from "react";
 
+import {Button, BUTTON_COLOR_TYPE} from "../components/ui/Button";
+import {ButtonRow} from "../components/ui/ButtonRow";
+import {IconButton} from "../components/ui/IconButton";
+
+import backArrowIcon from "../assets/ui/backArrowIcon.png";
 import {HANDS, type HandId} from "../constants/hands";
 
 type RuleScreenProps = {
@@ -159,6 +164,12 @@ export function RuleScreen({onBackToTop}: RuleScreenProps) {
 
   return (
     <main className="screen rule-screen">
+      <IconButton
+        className="rule-back-button"
+        iconSrc={backArrowIcon}
+        label="トップ画面へ戻る"
+        onClick={onBackToTop}
+      />
       <header className="rule-header">
         <h1 className="rule-title">ルール説明</h1>
         <p className="rule-page-count">
@@ -168,27 +179,24 @@ export function RuleScreen({onBackToTop}: RuleScreenProps) {
 
       {RULE_PAGES[pageIndex]}
 
-      <div className="rule-actions">
-        <button
-          className="rule-action-button"
+      <ButtonRow>
+        <Button
+          colorVariant={BUTTON_COLOR_TYPE.PAGE}
           disabled={pageIndex === 0}
           onClick={() => setPageIndex((page) => page - 1)}
           type="button"
         >
           1ページ戻す
-        </button>
-        <button
-          className="rule-action-button"
+        </Button>
+        <Button
+          colorVariant={BUTTON_COLOR_TYPE.PAGE}
           disabled={pageIndex === RULE_PAGES.length - 1}
           onClick={() => setPageIndex((page) => page + 1)}
           type="button"
         >
           1ページ進める
-        </button>
-        <button className="rule-top-button" onClick={onBackToTop} type="button">
-          トップ画面へ戻る
-        </button>
-      </div>
+        </Button>
+      </ButtonRow>
     </main>
   );
 }
