@@ -2,9 +2,8 @@ import {useState} from "react";
 
 import {Button, BUTTON_COLOR_TYPE} from "../components/ui/Button";
 import {ButtonRow} from "../components/ui/ButtonRow";
-import {IconButton} from "../components/ui/IconButton";
+import {BackArrowButton} from "../components/ui/BackArrowButton";
 
-import backArrowIcon from "../assets/ui/backArrowIcon.png";
 import {HANDS, type HandId} from "../constants/hands";
 
 import {ScreenBanner} from "./ui/ScreenBanner";
@@ -168,12 +167,7 @@ export function RuleScreen({onBackToTop}: RuleScreenProps) {
   return (
     <main className="screen rule-screen">
       <ScreenBanner s={SCREEN_NAMES.RULES} />
-      <IconButton
-        className="rule-back-button"
-        iconSrc={backArrowIcon}
-        label="トップ画面へ戻る"
-        onClick={onBackToTop}
-      />
+      <BackArrowButton onClick={onBackToTop} />
       <header className="rule-header">
         <h1 className="rule-title">ルール説明</h1>
         <p className="rule-page-count">

@@ -254,12 +254,6 @@
   color: #eeeeee;
 }
 
-.rule-back-button {
-  position: absolute;
-  top: 18px;
-  left: 36px;
-}
-
 .rule-header {
   display: grid;
   width: min(100%, 840px);
