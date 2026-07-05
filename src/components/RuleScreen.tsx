@@ -7,6 +7,9 @@ import {IconButton} from "../components/ui/IconButton";
 import backArrowIcon from "../assets/ui/backArrowIcon.png";
 import {HANDS, type HandId} from "../constants/hands";
 
+import {ScreenBanner} from "./ui/ScreenBanner";
+import {SCREEN_NAMES} from "../constants/screenNames";
+
 type RuleScreenProps = {
   onBackToTop: () => void;
 };
@@ -164,6 +167,7 @@ export function RuleScreen({onBackToTop}: RuleScreenProps) {
 
   return (
     <main className="screen rule-screen">
+      <ScreenBanner s={SCREEN_NAMES.RULES} />
       <IconButton
         className="rule-back-button"
         iconSrc={backArrowIcon}

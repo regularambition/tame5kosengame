@@ -10,19 +10,10 @@ import {auth} from "./firebase";
 import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
 
-const SCREEN_NAMES = {
-  TITLE: "title",
-  USER_NAME: "userName",
-  TOP: "top",
-  SETTINGS: "settings",
-  RULES: "rules",
-  ENTRANCE: "entrace",
-} as const;
-
-type Screen = (typeof SCREEN_NAMES)[keyof typeof SCREEN_NAMES];
+import {SCREEN_NAMES, Screen} from "./constants/screenNames";
 
 function App() {
-  const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.TITLE);
+  const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState("");
 
@@ -54,7 +45,7 @@ function App() {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
-      setScreen(SCREEN_NAMES.TITLE);
+      setScreen(SCREEN_NAMES.GAME_TITLE);
       setAuthError("認証情報が見つかりません。もう一度お試しください");
       return;
     }
@@ -64,7 +55,7 @@ function App() {
     setScreen(SCREEN_NAMES.TOP);
   };
 
-  if (screen === SCREEN_NAMES.TITLE) {
+  if (screen === SCREEN_NAMES.GAME_TITLE) {
     return <TitleScreen error={authError} isLoading={isAuthenticating} onStart={handleStart} />;
   }
 

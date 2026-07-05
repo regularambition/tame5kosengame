@@ -1,11 +1,11 @@
 .icon-button {
   display: grid;
-  width: 96px;
-  height: 96px;
+  width: 72px;
+  height: 72px;
   place-items: center;
   border: 0;
   padding: 0;
-  background-color: salmon;
+  background-image: linear-gradient(118deg, #70b11a, #8b5cf6);
   cursor: pointer;
 }
 

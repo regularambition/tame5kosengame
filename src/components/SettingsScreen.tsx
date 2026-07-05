@@ -2,8 +2,12 @@ import {useState} from "react";
 
 import {USER_NAME_RULES} from "@tame5kosengame/shared";
 import {IconButton} from "../components/ui/IconButton";
-import {Button, BUTTON_SHAPE_TYPE} from "../components/ui/Button";
+import {Button} from "../components/ui/Button";
 import {ButtonRow} from "../components/ui/ButtonRow";
+import {CenterAligningDiv} from "../components/ui/CenterAligningDiv";
+
+import {ScreenBanner} from "./ui/ScreenBanner";
+import {SCREEN_NAMES} from "../constants/screenNames";
 
 type SettingsScreenProps = {
   onBack: () => void;
@@ -35,10 +39,11 @@ export function SettingsScreen({onBack}: SettingsScreenProps) {
   };
 
   return (
-    <main className="screen settings-screen">
-      <h1 className="settings-title">設定変更</h1>
+    <main className="screen">
+      {/* <h1 className="screen-title">設定変更</h1> */}
+      <ScreenBanner s={SCREEN_NAMES.SETTINGS} />
 
-      <section
+      {/* <section
         className="settings-section settings-name-section"
         aria-labelledby="settings-name-title"
       >
@@ -59,7 +64,24 @@ export function SettingsScreen({onBack}: SettingsScreenProps) {
           type="text"
           value={name}
         />
-      </section>
+      </section> */}
+      <CenterAligningDiv>
+        <h2 className="settings-section-title" id="settings-name-title">
+          ユーザー名変更
+        </h2>
+        <p className="settings-note">
+          ※1文字以上16文字以下の半角英大文字・小文字・アラビア数字でのみ入力可能
+        </p>
+        <input
+          aria-label="ユーザー名変更"
+          className="settings-name-input"
+          maxLength={USER_NAME_RULES.MAX_LENGTH}
+          onChange={handleNameChange}
+          placeholder="入力値が空でない場合のみ更新されます"
+          type="text"
+          value={name}
+        />
+      </CenterAligningDiv>
 
       <section
         className="settings-section settings-icon-section"
