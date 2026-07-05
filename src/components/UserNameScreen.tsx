@@ -2,13 +2,20 @@ import {useState} from "react";
 
 import {isValidUserName, USER_NAME_RULES} from "@tame5kosengame/shared";
 import {Button} from "./ui/Button";
+import {BackArrowButton} from "./ui/BackArrowButton";
+import {ScreenBanner} from "./ui/ScreenBanner";
+import {SCREEN_NAMES} from "../constants/screenNames";
+import {TextInput} from "./ui/TextInput";
+
 import "./UserNameScreen.css";
 
 type UserNameScreenProps = {
+  isUpdate: boolean;
   onSubmit: (name: string) => Promise<void>;
+  onBack: () => void;
 };
 
-export function UserNameScreen({onSubmit}: UserNameScreenProps) {
+export function UserNameScreen({isUpdate, onSubmit, onBack}: UserNameScreenProps) {
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -19,9 +26,8 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
     setError("");
   };
 
-  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
-    event.preventDefault();
-
+  const handleSubmit = async () => {
+    console.log("called handleSubmit");
     if (!isValidUserName(name)) {
       setError(
         `${USER_NAME_RULES.MIN_LENGTH}文字以上${USER_NAME_RULES.MAX_LENGTH}文字以下の半角英数字で入力してください`,
@@ -39,29 +45,21 @@ export function UserNameScreen({onSubmit}: UserNameScreenProps) {
   };
 
   return (
-    <main className="screen user-name-screen">
-      <form className="user-name-form" onSubmit={handleSubmit}>
-        <h1 className="user-name-title">ユーザー名を入力</h1>
-        <p className="user-name-note">
-          ※{USER_NAME_RULES.MAX_LENGTH}文字以内の半角英大文字・小文字・
-          <br />
-          アラビア数字でのみ入力可能
-        </p>
-        <input
-          aria-label="ユーザー名"
-          className="user-name-input"
-          disabled={isSubmitting}
-          maxLength={USER_NAME_RULES.MAX_LENGTH}
-          onChange={handleChange}
-          type="text"
-          value={name}
-        />
-        {error && <p className="user-name-error">{error}</p>}
-        <Button disabled={isSubmitting}>決定</Button>
-        {/* <button className="user-name-submit" disabled={isSubmitting} type="submit">
-          決定
-        </button> */}
-      </form>
+    <main className="screen">
+      <ScreenBanner s={SCREEN_NAMES.USER_NAME} />
+      {isUpdate && <BackArrowButton onClick={onBack} />}
+      <TextInput
+        maxLength={USER_NAME_RULES.MAX_LENGTH}
+        errorMessage={error}
+        aria-label="ユーザー名"
+        onChange={handleChange}
+        placeholder={isUpdate ? "入力値が空でない場合のみ更新されます" : ""}
+        value={name}
+        disabled={isSubmitting}
+      />
+      <Button disabled={isSubmitting} onClick={async () => await handleSubmit()}>
+        決定
+      </Button>
     </main>
   );
 }

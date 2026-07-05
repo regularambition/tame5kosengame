@@ -2,7 +2,7 @@ import "./CenterAligningDiv.css";
 
 import type {ReactNode} from "react";
 
-type DivProps = React.ButtonHTMLAttributes<HTMLDivElement> & {
+type DivProps = {
   children: ReactNode;
   className?: string;
 };

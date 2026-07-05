@@ -3,7 +3,7 @@ import {useState} from "react";
 import {USER_NAME_RULES} from "@tame5kosengame/shared";
 import {Button} from "../components/ui/Button";
 import {ButtonRow} from "../components/ui/ButtonRow";
-import {CenterAligningDiv} from "../components/ui/CenterAligningDiv";
+import {TextInput} from "../components/ui/TextInput";
 
 import {ScreenBanner} from "./ui/ScreenBanner";
 import {SCREEN_NAMES} from "../constants/screenNames";
@@ -23,29 +23,12 @@ export function SettingsScreen({onBack}: SettingsScreenProps) {
   return (
     <main className="screen">
       <ScreenBanner s={SCREEN_NAMES.SETTINGS} />
-      <CenterAligningDiv>
-        <h2 className="settings-section-title" id="settings-name-title">
-          ユーザー名変更
-        </h2>
-        <p className="settings-note">
-          ※1文字以上16文字以下の半角英大文字・小文字・アラビア数字でのみ入力可能
-        </p>
-        <input
-          aria-label="ユーザー名変更"
-          className="settings-name-input"
-          maxLength={USER_NAME_RULES.MAX_LENGTH}
-          onChange={handleNameChange}
-          placeholder="入力値が空でない場合のみ更新されます"
-          type="text"
-          value={name}
-        />
-      </CenterAligningDiv>
 
       <section
         className="settings-section settings-highlight-section"
         aria-labelledby="settings-highlight-title"
       >
-        <h2 className="settings-section-title" id="settings-highlight-title">
+        <h2 className="item-title" id="settings-highlight-title">
           対戦中に自分の選択している手を強調表示
         </h2>
         <div className="settings-radio-group">

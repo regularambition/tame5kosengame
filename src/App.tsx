@@ -16,6 +16,7 @@ function App() {
   const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [isUserNameRegistered, setIsUserNameRegistered] = useState(false);
 
   const handleStart = async () => {
     if (isAuthenticating) {
@@ -34,6 +35,7 @@ function App() {
       console.log("ensureUserProfile finished!");
       console.log(userProfile);
       setScreen(userProfile.data.alreadyRegistered ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
+      setIsUserNameRegistered(userProfile.data.alreadyRegistered);
     } catch {
       setAuthError("認証に失敗しました。もう一度クリックしてください");
     } finally {
@@ -52,6 +54,7 @@ function App() {
 
     await updateUserName(name);
     console.log("updateUserName finished!");
+    setIsUserNameRegistered(true);
     setScreen(SCREEN_NAMES.TOP);
   };
 
@@ -60,7 +63,18 @@ function App() {
   }
 
   if (screen === SCREEN_NAMES.USER_NAME) {
-    return <UserNameScreen onSubmit={handleRegisterName} />;
+    console.log(`isUserNameRegistered = ${isUserNameRegistered}`);
+    return (
+      <UserNameScreen
+        isUpdate={isUserNameRegistered}
+        onSubmit={handleRegisterName}
+        onBack={() => {
+          if (isUserNameRegistered) {
+            setScreen(SCREEN_NAMES.TOP);
+          }
+        }}
+      />
+    );
   }
 
   if (screen === SCREEN_NAMES.SETTINGS) {
@@ -76,6 +90,7 @@ function App() {
       onEntranceClick={() => setScreen(SCREEN_NAMES.ENTRANCE)}
       onRulesClick={() => setScreen(SCREEN_NAMES.RULES)}
       onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
+      onUserNameClick={() => setScreen(SCREEN_NAMES.USER_NAME)}
     />
   );
 }

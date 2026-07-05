@@ -8,9 +8,15 @@ type TopScreenProps = {
   onEntranceClick: () => void;
   onRulesClick: () => void;
   onSettingsClick: () => void;
+  onUserNameClick: () => void;
 };
 
-export function TopScreen({onEntranceClick, onRulesClick, onSettingsClick}: TopScreenProps) {
+export function TopScreen({
+  onEntranceClick,
+  onRulesClick,
+  onSettingsClick,
+  onUserNameClick,
+}: TopScreenProps) {
   return (
     <main className="screen top-screen">
       <ScreenBanner s={SCREEN_NAMES.TOP} />
@@ -28,6 +34,13 @@ export function TopScreen({onEntranceClick, onRulesClick, onSettingsClick}: TopS
         <Button onClick={onSettingsClick} type="button">
           設定の変更
         </Button>
+      </ButtonRow>
+
+      <ButtonRow>
+        <Button onClick={onUserNameClick} type="button">
+          ユーザー名変更
+        </Button>
+        <Button type="button">クレジット</Button>
       </ButtonRow>
     </main>
   );

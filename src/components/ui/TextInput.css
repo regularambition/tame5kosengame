@@ -1,0 +1,23 @@
+.text-input {
+  box-sizing: border-box;
+  width: 60%;
+  height: 80px;
+  border: 1px solid #5b5b5b;
+  border-radius: 17px;
+  padding: 0 28px;
+  background: #ffffff;
+  color: #000000;
+  font: inherit;
+  font-size: 40px;
+  outline: none;
+  text-align: center;
+}
+
+.text-input::placeholder {
+  color: #b8b8b8;
+  opacity: 1;
+}
+
+.text-input:focus {
+  border-color: #2d5fa7;
+}
