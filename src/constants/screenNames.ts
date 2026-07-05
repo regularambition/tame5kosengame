@@ -4,6 +4,7 @@ export const SCREEN_NAMES = {
   TOP: {code: "top", name: "トップ"} as const,
   SETTINGS: {code: "settings", name: "設定変更"} as const,
   RULES: {code: "rules", name: "ルール確認"} as const,
+  CREDITS: {code: "credits", name: "クレジット"} as const,
   ENTRANCE: {code: "entrance", name: "部屋タイプ選択"} as const,
 } as const;
 

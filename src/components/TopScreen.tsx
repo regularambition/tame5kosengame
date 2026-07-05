@@ -9,6 +9,7 @@ type TopScreenProps = {
   onRulesClick: () => void;
   onSettingsClick: () => void;
   onUserNameClick: () => void;
+  onCreditClick: () => void;
 };
 
 export function TopScreen({
@@ -16,6 +17,7 @@ export function TopScreen({
   onRulesClick,
   onSettingsClick,
   onUserNameClick,
+  onCreditClick,
 }: TopScreenProps) {
   return (
     <main className="screen top-screen">
@@ -40,7 +42,9 @@ export function TopScreen({
         <Button onClick={onUserNameClick} type="button">
           ユーザー名変更
         </Button>
-        <Button type="button">クレジット</Button>
+        <Button onClick={onCreditClick} type="button">
+          クレジット
+        </Button>
       </ButtonRow>
     </main>
   );

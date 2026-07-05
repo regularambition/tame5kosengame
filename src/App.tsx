@@ -6,6 +6,7 @@ import {TopScreen} from "./components/TopScreen";
 import {UserNameScreen} from "./components/UserNameScreen";
 import {SettingsScreen} from "./components/SettingsScreen";
 import {RuleScreen} from "./components/RuleScreen";
+import {CreditsScreen} from "./components/CreditsScreen";
 import {auth} from "./firebase";
 import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
@@ -85,12 +86,17 @@ function App() {
     return <RuleScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
   }
 
+  if (screen === SCREEN_NAMES.CREDITS) {
+    return <CreditsScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
   return (
     <TopScreen
       onEntranceClick={() => setScreen(SCREEN_NAMES.ENTRANCE)}
       onRulesClick={() => setScreen(SCREEN_NAMES.RULES)}
       onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
       onUserNameClick={() => setScreen(SCREEN_NAMES.USER_NAME)}
+      onCreditClick={() => setScreen(SCREEN_NAMES.CREDITS)}
     />
   );
 }
