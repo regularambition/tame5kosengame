@@ -1,80 +1,33 @@
 .screen {
-  box-sizing: border-box;
+  /* 要素を縦方向に並べる */
+  display: flex;
+  flex-direction: column;
+
+  /* 横方向について中央寄せ */
+  justify-content: center;
+  /* 縦方向について中央寄せ */
+  align-items: center;
+
+  /* 画面全体を使う */
   min-height: 100vh;
-  background: darkslategray;
-  color: #000000;
+  width: 100vw;
+
+  /* 子要素間の余白 */
+  gap: 16px;
+
+  /* 絶対配置を使う場合に必要 */
+  position: relative;
+  /* はみ出し防止 */
+  overflow: hidden;
+
+  background-color: darkslategray;
+  color: #8d8d8d;
   font-family:
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-}
-
-.title-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-}
-
-.game-title {
-  margin: 110px 0 0;
-  color: #5d5d5d;
-  font-size: 56px;
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.start-message {
-  margin: 0;
-  color: #5d5d5d;
-  font-size: 64px;
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.title-status {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  margin: auto 0 110px;
-}
-
-.title-error {
-  margin: 0;
-  color: #d60000;
-  font-size: 24px;
-}
-
-.top-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 52px;
-  padding: 34px 16px;
-}
-
-.menu-button {
-  width: min(74vw, 946px);
-  min-height: 108px;
-  border: 1px solid #5b5b5b;
-  border-radius: 17px;
-  background: #c9daf8;
-  color: #000000;
-  font: inherit;
-  font-size: 40px;
-  cursor: pointer;
-}
-
-.menu-button:hover {
-  background: #d6e4fb;
-}
-
-.menu-button:active {
-  background: #b7cdf3;
 }
 
 .user-name-screen {

@@ -1,3 +1,7 @@
+import "./TitleScreen.css";
+
+import {CenterAligningDiv} from "./ui/CenterAligningDiv";
+
 type TitleScreenProps = {
   onStart: () => void;
   isLoading?: boolean;
@@ -8,10 +12,10 @@ export function TitleScreen({onStart, isLoading = false, error}: TitleScreenProp
   return (
     <main className="screen title-screen" onClick={isLoading ? undefined : onStart}>
       <h1 className="game-title">溜め5光線ゲーム</h1>
-      <div className="title-status">
+      <CenterAligningDiv className="title-status">
         <p className="start-message">{isLoading ? "LOADING..." : "CLICK ANYWHERE TO START"}</p>
         {error && <p className="title-error">{error}</p>}
-      </div>
+      </CenterAligningDiv>
     </main>
   );
 }

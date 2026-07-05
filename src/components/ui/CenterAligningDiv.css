@@ -1,0 +1,9 @@
+.inherit-alignment {
+  /* 縦方向並べ・中央寄せを継承 */
+  display: inherit;
+  flex-direction: inherit;
+  justify-content: inherit;
+  align-items: inherit;
+
+  gap: 10px;
+}

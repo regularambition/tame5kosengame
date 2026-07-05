@@ -42,9 +42,9 @@
 
 .button-square {
   /* width: min(100%, 512px); */
-  width: 300px;
-  min-height: 300px;
-  margin-top: 68px;
+  width: 256px;
+  min-height: 256px;
+  margin-top: 32px;
 }
 
 @media (max-width: 720px) {
