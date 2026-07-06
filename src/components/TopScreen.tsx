@@ -35,7 +35,7 @@ export function TopScreen({
 
       <ButtonRow>
         <Button onClick={onRulesClick} type="button">
-          ゲームのルールを確認
+          遊び方
         </Button>
         <Button onClick={onSettingsClick} type="button">
           設定の変更

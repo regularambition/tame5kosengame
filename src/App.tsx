@@ -5,7 +5,7 @@ import {TitleScreen} from "./components/TitleScreen";
 import {TopScreen} from "./components/TopScreen";
 import {UserNameScreen} from "./components/UserNameScreen";
 import {SettingsScreen} from "./components/SettingsScreen";
-import {RuleScreen} from "./components/RuleScreen";
+import {HowToPlayScreen} from "./components/HowToPlayScreen";
 import {CreditsScreen} from "./components/CreditsScreen";
 import {auth} from "./firebase";
 import {ensureUserProfile} from "./api/ensureUserProfile";
@@ -111,8 +111,8 @@ function App() {
     );
   }
 
-  if (screen === SCREEN_NAMES.RULES) {
-    return <RuleScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  if (screen === SCREEN_NAMES.HOW_TO_PLAY) {
+    return <HowToPlayScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
   }
 
   if (screen === SCREEN_NAMES.CREDITS) {
@@ -127,7 +127,7 @@ function App() {
     <TopScreen
       onRandomMatchClick={() => setScreen(SCREEN_NAMES.RANDOM_MATCH)}
       onPrivateMatchClick={() => setScreen(SCREEN_NAMES.PRIVATE_MATCH)}
-      onRulesClick={() => setScreen(SCREEN_NAMES.RULES)}
+      onRulesClick={() => setScreen(SCREEN_NAMES.HOW_TO_PLAY)}
       onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
       onUserNameClick={() => setScreen(SCREEN_NAMES.USER_NAME)}
       onCreditClick={() => setScreen(SCREEN_NAMES.CREDITS)}
