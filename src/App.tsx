@@ -12,6 +12,7 @@ import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
 
 import {SCREEN_NAMES, Screen} from "./constants/screenNames";
+import {RandomMatchScreen} from "./components/RandomMatchScreen";
 
 function App() {
   const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
@@ -90,9 +91,14 @@ function App() {
     return <CreditsScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
   }
 
+  if (screen === SCREEN_NAMES.RANDOM_MATCH) {
+    return <RandomMatchScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
   return (
     <TopScreen
-      onEntranceClick={() => setScreen(SCREEN_NAMES.ENTRANCE)}
+      onRandomMatchClick={() => setScreen(SCREEN_NAMES.RANDOM_MATCH)}
+      onPrivateMatchClick={() => setScreen(SCREEN_NAMES.PRIVATE_MATCH)}
       onRulesClick={() => setScreen(SCREEN_NAMES.RULES)}
       onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
       onUserNameClick={() => setScreen(SCREEN_NAMES.USER_NAME)}

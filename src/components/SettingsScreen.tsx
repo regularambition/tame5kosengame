@@ -1,9 +1,8 @@
 import {useState} from "react";
 
 import {USER_NAME_RULES} from "@tame5kosengame/shared";
-import {Button} from "../components/ui/Button";
-import {ButtonRow} from "../components/ui/ButtonRow";
-import {TextInput} from "../components/ui/TextInput";
+import {Button} from "./ui/Button";
+import {ButtonRow} from "./ui/ButtonRow";
 
 import {ScreenBanner} from "./ui/ScreenBanner";
 import {SCREEN_NAMES} from "../constants/screenNames";
@@ -16,12 +15,8 @@ export function SettingsScreen({onBack}: SettingsScreenProps) {
   const [name, setName] = useState("");
   const [highlightOwnHand, setHighlightOwnHand] = useState(true);
 
-  const handleNameChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
-    setName(event.target.value.slice(0, USER_NAME_RULES.MAX_LENGTH));
-  };
-
   return (
-    <main className="screen">
+    <main className="screen centering">
       <ScreenBanner s={SCREEN_NAMES.SETTINGS} />
 
       <section

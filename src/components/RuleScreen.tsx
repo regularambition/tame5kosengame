@@ -1,8 +1,8 @@
 import {useState} from "react";
 
-import {Button, BUTTON_COLOR_TYPE} from "../components/ui/Button";
-import {ButtonRow} from "../components/ui/ButtonRow";
-import {BackArrowButton} from "../components/ui/BackArrowButton";
+import {Button, BUTTON_COLOR_TYPE} from "./ui/Button";
+import {ButtonRow} from "./ui/ButtonRow";
+import {BackArrowButton} from "./ui/BackArrowButton";
 
 import {HANDS, type HandId} from "../constants/hands";
 

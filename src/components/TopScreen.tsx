@@ -1,11 +1,12 @@
-import {Button} from "../components/ui/Button";
-import {ButtonRow} from "../components/ui/ButtonRow";
+import {Button} from "./ui/Button";
+import {ButtonRow} from "./ui/ButtonRow";
 
 import {ScreenBanner} from "./ui/ScreenBanner";
 import {SCREEN_NAMES} from "../constants/screenNames";
 
 type TopScreenProps = {
-  onEntranceClick: () => void;
+  onRandomMatchClick: () => void;
+  onPrivateMatchClick: () => void;
   onRulesClick: () => void;
   onSettingsClick: () => void;
   onUserNameClick: () => void;
@@ -13,19 +14,22 @@ type TopScreenProps = {
 };
 
 export function TopScreen({
-  onEntranceClick,
+  onRandomMatchClick,
+  onPrivateMatchClick,
   onRulesClick,
   onSettingsClick,
   onUserNameClick,
   onCreditClick,
 }: TopScreenProps) {
   return (
-    <main className="screen top-screen">
+    <main className="screen centering top-screen">
       <ScreenBanner s={SCREEN_NAMES.TOP} />
       <ButtonRow>
-        <Button type="button">自分が部屋を建てる</Button>
-        <Button onClick={onEntranceClick} type="button">
-          他の人が建てた部屋に入る
+        <Button onClick={onRandomMatchClick} type="button">
+          ランダムマッチ
+        </Button>
+        <Button onClick={onPrivateMatchClick} type="button">
+          プライベートマッチ
         </Button>
       </ButtonRow>
 

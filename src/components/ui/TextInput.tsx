@@ -25,10 +25,10 @@ export function TextInput({
 }: TextInputProps) {
   return (
     <CenterAligningDiv>
-      <span className="text-input-note">
+      <p className="error-and-annotation">
         ※{minLength}文字以上{maxLength}
         文字以下の<br></br>半角英数字・平仮名・片仮名・漢字でのみ入力可能
-      </span>
+      </p>
       <input
         className="text-input"
         type="text"
@@ -39,7 +39,7 @@ export function TextInput({
         value={value}
         disabled={disabled}
       />
-      {errorMessage && <p className="error-massage">{errorMessage}</p>}
+      {errorMessage && <p className="error-and-annotation">{errorMessage}</p>}
     </CenterAligningDiv>
   );
 }

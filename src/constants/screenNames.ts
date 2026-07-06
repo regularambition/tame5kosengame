@@ -5,7 +5,8 @@ export const SCREEN_NAMES = {
   SETTINGS: {code: "settings", name: "設定変更"} as const,
   RULES: {code: "rules", name: "ルール確認"} as const,
   CREDITS: {code: "credits", name: "クレジット"} as const,
-  ENTRANCE: {code: "entrance", name: "部屋タイプ選択"} as const,
+  RANDOM_MATCH: {code: "randomMatch", name: "ランダムマッチ"} as const,
+  PRIVATE_MATCH: {code: "privateMatch", name: "プライベートマッチ"} as const,
 } as const;
 
 export type Screen = (typeof SCREEN_NAMES)[keyof typeof SCREEN_NAMES];
