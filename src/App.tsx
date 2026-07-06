@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import "./App.css";
 import {signInAnonymously} from "firebase/auth";
 import {TitleScreen} from "./components/TitleScreen";
@@ -13,12 +13,34 @@ import {updateUserName} from "./api/updateUserName";
 
 import {SCREEN_NAMES, Screen} from "./constants/screenNames";
 import {RandomMatchScreen} from "./components/RandomMatchScreen";
+import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
+
+function loadGameSettings(): GameSettings {
+  const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
+
+  if (!savedSettings) {
+    return DEFAULT_GAME_SETTINGS;
+  }
+
+  try {
+    return {
+      ...DEFAULT_GAME_SETTINGS,
+      ...JSON.parse(savedSettings),
+    };
+  } catch {
+    return DEFAULT_GAME_SETTINGS;
+  }
+}
 
 function App() {
   const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState("");
   const [isUserNameRegistered, setIsUserNameRegistered] = useState(false);
+  const [gameSettings, setGameSettings] = useState<GameSettings>(loadGameSettings());
+  useEffect(() => {
+    localStorage.setItem(GAME_SETTINGS_STORAGE_KEY, JSON.stringify(gameSettings));
+  }, [gameSettings]);
 
   const handleStart = async () => {
     if (isAuthenticating) {
@@ -80,7 +102,13 @@ function App() {
   }
 
   if (screen === SCREEN_NAMES.SETTINGS) {
-    return <SettingsScreen onBack={() => setScreen(SCREEN_NAMES.TOP)} />;
+    return (
+      <SettingsScreen
+        gameSettings={gameSettings}
+        onChangeGameSettings={setGameSettings}
+        onBack={() => setScreen(SCREEN_NAMES.TOP)}
+      />
+    );
   }
 
   if (screen === SCREEN_NAMES.RULES) {

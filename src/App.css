@@ -95,18 +95,6 @@
   cursor: wait;
 }
 
-.settings-section {
-  width: min(100%, 914px);
-}
-
-.item-title {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 400;
-  letter-spacing: 0;
-  line-height: 1.25;
-}
-
 .text-input-note {
   margin: 20px 0 22px;
   line-height: 1.18;
@@ -154,22 +142,17 @@
   object-fit: cover;
 }
 
-.settings-highlight-section {
-  margin-top: 12px;
-}
-
 .settings-radio-group {
   display: flex;
   justify-content: center;
   gap: 110px;
-  margin-top: 44px;
+  margin-top: 16px;
 }
 
 .settings-radio-label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 34px;
   line-height: 1;
   cursor: pointer;
 }
@@ -178,7 +161,7 @@
   width: 17px;
   height: 17px;
   margin: 0;
-  accent-color: #555555;
+  accent-color: orange;
 }
 
 .settings-actions {
