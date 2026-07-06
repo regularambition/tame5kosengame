@@ -191,16 +191,6 @@
   background: #b7cdf3;
 }
 
-.rule-screen {
-  position: relative;
-  display: flex;
-  min-height: 100vh;
-  flex-direction: column;
-  align-items: center;
-  padding: 18px 50px 24px;
-  color: #eeeeee;
-}
-
 .rule-header {
   display: grid;
   width: min(100%, 840px);
@@ -228,22 +218,13 @@
 }
 
 .rule-page-content {
+  width: min(100%, 840px);
+  height: 720px;
+
   display: flex;
-  width: min(100%, 960px);
-  min-height: 410px;
-  flex: 1;
   flex-direction: column;
   justify-content: center;
-}
-
-.rule-page-text {
-  gap: 34px;
-  font-size: 40px;
-  line-height: 1.35;
-}
-
-.rule-page-text p {
-  margin: 0;
+  /* align-items: center; */
 }
 
 .rule-section-title {
@@ -289,7 +270,6 @@
 .rule-matchup-page {
   align-items: center;
   justify-content: flex-start;
-  padding-top: 45px;
 }
 
 .rule-matchup-table {

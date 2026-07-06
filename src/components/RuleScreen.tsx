@@ -1,8 +1,7 @@
 import {useState} from "react";
 
-import {Button, BUTTON_COLOR_TYPE} from "./ui/Button";
-import {ButtonRow} from "./ui/ButtonRow";
 import {BackArrowButton} from "./ui/BackArrowButton";
+import {PagingUiRow} from "./ui/PagingUiRow";
 
 import {HANDS, type HandId} from "../constants/hands";
 
@@ -78,7 +77,7 @@ const MATCHUP_RESULTS: Record<HandId, Record<HandId, string>> = {
 
 function BasicRulePage() {
   return (
-    <div className="rule-page-content rule-page-text">
+    <div className="rule-page-content not-playing-text-general">
       <p>相手の手に勝てる相性の手を出すと1点獲得</p>
       <p>決められた数だけ点を先取した側の勝利</p>
       <p>切断時は30秒以内であれば再接続可能（間に合わない場合は強制敗北）</p>
@@ -105,7 +104,7 @@ function HandEffectPage({description, handId, title}: HandEffect) {
 
 function MatchupPage() {
   return (
-    <div className="rule-page-content rule-matchup-page">
+    <div className="rule-page-content ">
       <h2 className="rule-section-title">手どうしの相性表</h2>
       <table className="rule-matchup-table">
         <thead>
@@ -162,39 +161,20 @@ const RULE_PAGES = [
 
 export function RuleScreen({onBackToTop}: RuleScreenProps) {
   const [pageIndex, setPageIndex] = useState(0);
-  const pageNumber = pageIndex + 1;
 
   return (
-    <main className="screen rule-screen">
+    <main className="screen centering">
       <ScreenBanner s={SCREEN_NAMES.RULES} />
       <BackArrowButton onClick={onBackToTop} />
-      <header className="rule-header">
-        <h1 className="rule-title">ルール説明</h1>
-        <p className="rule-page-count">
-          {pageNumber}/{RULE_PAGES.length}
-        </p>
-      </header>
 
       {RULE_PAGES[pageIndex]}
 
-      <ButtonRow>
-        <Button
-          colorVariant={BUTTON_COLOR_TYPE.PAGE}
-          disabled={pageIndex === 0}
-          onClick={() => setPageIndex((page) => page - 1)}
-          type="button"
-        >
-          1ページ戻す
-        </Button>
-        <Button
-          colorVariant={BUTTON_COLOR_TYPE.PAGE}
-          disabled={pageIndex === RULE_PAGES.length - 1}
-          onClick={() => setPageIndex((page) => page + 1)}
-          type="button"
-        >
-          1ページ進める
-        </Button>
-      </ButtonRow>
+      <PagingUiRow
+        pageIndex={pageIndex}
+        pageCount={RULE_PAGES.length}
+        onClickLeft={() => setPageIndex((page) => page - 1)}
+        onClickRight={() => setPageIndex((page) => page + 1)}
+      />
     </main>
   );
 }
