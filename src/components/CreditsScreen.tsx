@@ -10,7 +10,7 @@ type CreditsScreenProps = {
 
 export function CreditsScreen({onBackToTop}: CreditsScreenProps) {
   return (
-    <main className="screen centering credits-screen">
+    <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering credits-screen">
       <ScreenBanner s={SCREEN_NAMES.CREDITS} />
       <BackArrowButton onClick={onBackToTop} />
       <span>ニコニコモンズ</span>

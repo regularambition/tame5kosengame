@@ -22,7 +22,7 @@ export function TopScreen({
   onCreditClick,
 }: TopScreenProps) {
   return (
-    <main className="screen centering top-screen">
+    <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering">
       <ScreenBanner s={SCREEN_NAMES.TOP} />
       <ButtonRow>
         <Button onClick={onRandomMatchClick} type="button">

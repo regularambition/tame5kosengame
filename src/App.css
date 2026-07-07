@@ -1,11 +1,4 @@
 .screen {
-  /* 要素を縦方向に並べる */
-  display: flex;
-  flex-direction: column;
-
-  /* 画面全体を使う */
-  min-height: 100vh;
-
   /* 子要素間の余白 */
   gap: 16px;
 
@@ -24,9 +17,23 @@
     sans-serif;
 }
 
-.centering {
+.using-full-height {
+  /* 画面全体を使う */
+  min-height: 100vh;
+}
+
+.vertical-alignment {
+  /* 要素を縦方向に並べる */
+  display: flex;
+  flex-direction: column;
+}
+
+.vertical-centering {
   /* 縦方向について中央寄せ */
   justify-content: center;
+}
+
+.horizontal-centering {
   /* 横方向について中央寄せ */
   align-items: center;
 }
@@ -35,9 +42,13 @@
   font-size: 32px;
 }
 
+.not-playing-text-general > * {
+  font-size: 32px;
+}
+
 .error-and-annotation {
   font-size: 28px;
-  color: #ff0000;
+  color: orange;
 }
 
 .screen-title {
@@ -93,12 +104,6 @@
 .user-name-input:disabled {
   opacity: 0.65;
   cursor: wait;
-}
-
-.text-input-note {
-  margin: 20px 0 22px;
-  line-height: 1.18;
-  text-align: center;
 }
 
 .settings-icon-section {

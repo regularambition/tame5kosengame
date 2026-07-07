@@ -1,6 +1,6 @@
 .text-input {
   box-sizing: border-box;
-  width: 60%;
+  width: 70vw;
   height: 80px;
   border: 1px solid #5b5b5b;
   border-radius: 17px;
@@ -8,7 +8,7 @@
   background: #ffffff;
   color: #000000;
   font: inherit;
-  font-size: 40px;
+  font-size: inherit;
   outline: none;
   text-align: center;
 }

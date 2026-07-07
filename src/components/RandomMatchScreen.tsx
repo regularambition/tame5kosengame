@@ -11,7 +11,7 @@ type RandomMatchScreenProps = {
 
 export function RandomMatchScreen({onBackToTop}: RandomMatchScreenProps) {
   return (
-    <main className="screen centering not-playing-text-general">
+    <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.RANDOM_MATCH} />
       <BackArrowButton onClick={onBackToTop} />
 

@@ -45,7 +45,7 @@ export function UserNameScreen({isUpdate, onSubmit, onBack}: UserNameScreenProps
   };
 
   return (
-    <main className="screen centering not-playing-text-general">
+    <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.USER_NAME} />
       {isUpdate && <BackArrowButton onClick={onBack} />}
       <TextInput

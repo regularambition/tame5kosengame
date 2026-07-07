@@ -9,7 +9,7 @@ type DivProps = {
 
 export function CenterAligningDiv({children, className = "", ...props}: DivProps) {
   return (
-    <div className={`inherit-alignment ${className}`} {...props}>
+    <div className={`vertical-alignment horizontal-centering ${className}`} {...props}>
       {children}
     </div>
   );

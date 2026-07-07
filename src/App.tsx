@@ -13,6 +13,7 @@ import {updateUserName} from "./api/updateUserName";
 
 import {SCREEN_NAMES, Screen} from "./constants/screenNames";
 import {RandomMatchScreen} from "./components/RandomMatchScreen";
+import {PrivateMatchScreen} from "./components/PrivateMatchScreen";
 import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
 
 function loadGameSettings(): GameSettings {
@@ -121,6 +122,15 @@ function App() {
 
   if (screen === SCREEN_NAMES.RANDOM_MATCH) {
     return <RandomMatchScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
+  if (screen === SCREEN_NAMES.PRIVATE_MATCH) {
+    return (
+      <PrivateMatchScreen
+        gameSettings={gameSettings}
+        onBackToTop={() => setScreen(SCREEN_NAMES.TOP)}
+      />
+    );
   }
 
   return (

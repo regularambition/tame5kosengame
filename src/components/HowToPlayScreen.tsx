@@ -164,7 +164,7 @@ export function HowToPlayScreen({onBackToTop}: HowToPlayScreenProps) {
   const [pageIndex, setPageIndex] = useState(0);
 
   return (
-    <main className="screen centering">
+    <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering">
       <ScreenBanner s={SCREEN_NAMES.HOW_TO_PLAY} />
       <BackArrowButton onClick={onBackToTop} />
 

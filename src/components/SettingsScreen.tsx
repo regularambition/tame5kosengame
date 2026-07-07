@@ -30,7 +30,7 @@ export function SettingsScreen({gameSettings, onChangeGameSettings, onBack}: Set
   };
 
   return (
-    <main className="screen centering not-playing-text-general">
+    <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.SETTINGS} />
 
       <span id="settings-highlight-title">対戦中に自分の選択している手を強調表示</span>
