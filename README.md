@@ -65,3 +65,8 @@ npm cache clean --force
 npm run sync:shared
 
 ※functions側から参照できるためには.local-packages\tame5kosengame-shared-0.0.0.tgzが最新のsharedリソースになっている必要あり
+
+### 画像を参照するコードを書き換えた時の型・整形チェック(プロジェクトルートで実行)
+
+- npx.cmd tsc -b
+- npx.cmd prettier --check {対象ファイルのパス}

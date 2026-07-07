@@ -1,0 +1,76 @@
+.htp-page-content {
+  width: min(100%, 840px);
+  height: 79vh;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+
+.htp-section-title {
+  margin: 0 0 24px;
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.htp-hand-detail {
+  display: grid;
+  width: min(100%, 780px);
+  grid-template-columns: minmax(180px, 300px) minmax(0, 1fr);
+  align-items: center;
+  gap: 46px;
+}
+
+.htp-hand-detail-image {
+  display: block;
+  width: 100%;
+  min-height: 400px;
+  max-height: 480px;
+  object-fit: contain;
+}
+
+.htp-hand-detail-text h3 {
+  margin: 0 0 24px;
+  font-size: 40px;
+  font-weight: 400;
+}
+
+.htp-hand-detail-text p {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.4;
+}
+
+.htp-matchup-table {
+  border-collapse: collapse;
+  color: #eeeeee;
+  font-size: 26px;
+  text-align: center;
+}
+
+.htp-matchup-table th,
+.htp-matchup-table td {
+  width: 92px;
+  height: 64px;
+  border: 1px solid #b8b8b8;
+  padding: 4px;
+  font-weight: 400;
+}
+
+.htp-matchup-table .htp-matchup-empty {
+  border: none;
+}
+
+.htp-matchup-hand-image {
+  display: block;
+  width: 72px;
+  height: 82px;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.htp-matchup-self-side {
+  line-height: 1;
+}

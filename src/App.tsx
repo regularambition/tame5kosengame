@@ -1,26 +1,47 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import "./App.css";
 import {signInAnonymously} from "firebase/auth";
-import {get, ref, serverTimestamp, set} from "firebase/database";
 import {TitleScreen} from "./components/TitleScreen";
 import {TopScreen} from "./components/TopScreen";
 import {UserNameScreen} from "./components/UserNameScreen";
-import {auth, database} from "./firebase";
+import {SettingsScreen} from "./components/SettingsScreen";
+import {HowToPlayScreen} from "./components/HowToPlayScreen";
+import {CreditsScreen} from "./components/CreditsScreen";
+import {auth} from "./firebase";
 import {ensureUserProfile} from "./api/ensureUserProfile";
 import {updateUserName} from "./api/updateUserName";
 
-const SCREEN_NAMES = {
-  TITLE: "title",
-  USER_NAME: "userName",
-  TOP: "top",
-} as const;
+import {SCREEN_NAMES, Screen} from "./constants/screenNames";
+import {RandomMatchScreen} from "./components/RandomMatchScreen";
+import {PrivateMatchScreen} from "./components/PrivateMatchScreen";
+import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
 
-type Screen = (typeof SCREEN_NAMES)[keyof typeof SCREEN_NAMES];
+function loadGameSettings(): GameSettings {
+  const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
+
+  if (!savedSettings) {
+    return DEFAULT_GAME_SETTINGS;
+  }
+
+  try {
+    return {
+      ...DEFAULT_GAME_SETTINGS,
+      ...JSON.parse(savedSettings),
+    };
+  } catch {
+    return DEFAULT_GAME_SETTINGS;
+  }
+}
 
 function App() {
-  const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.TITLE);
+  const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [isUserNameRegistered, setIsUserNameRegistered] = useState(false);
+  const [gameSettings, setGameSettings] = useState<GameSettings>(loadGameSettings());
+  useEffect(() => {
+    localStorage.setItem(GAME_SETTINGS_STORAGE_KEY, JSON.stringify(gameSettings));
+  }, [gameSettings]);
 
   const handleStart = async () => {
     if (isAuthenticating) {
@@ -31,10 +52,6 @@ function App() {
       setIsAuthenticating(true);
       setAuthError("");
 
-      // const { user } = await signInAnonymously(auth)
-      // const userSnapshot = await get(ref(database, `users/${user.uid}`))
-      // setScreen(userSnapshot.exists() ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME)
-
       await signInAnonymously(auth);
 
       console.log("anonymous signin finished!");
@@ -43,6 +60,7 @@ function App() {
       console.log("ensureUserProfile finished!");
       console.log(userProfile);
       setScreen(userProfile.data.alreadyRegistered ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
+      setIsUserNameRegistered(userProfile.data.alreadyRegistered);
     } catch {
       setAuthError("認証に失敗しました。もう一度クリックしてください");
     } finally {
@@ -54,29 +72,77 @@ function App() {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
-      setScreen(SCREEN_NAMES.TITLE);
+      setScreen(SCREEN_NAMES.GAME_TITLE);
       setAuthError("認証情報が見つかりません。もう一度お試しください");
       return;
     }
 
-    // await set(ref(database, `users/${currentUser.uid}`), {
-    //     name,
-    //     createdAt: serverTimestamp(),
-    // })
     await updateUserName(name);
     console.log("updateUserName finished!");
+    setIsUserNameRegistered(true);
     setScreen(SCREEN_NAMES.TOP);
   };
 
-  if (screen === SCREEN_NAMES.TITLE) {
+  if (screen === SCREEN_NAMES.GAME_TITLE) {
     return <TitleScreen error={authError} isLoading={isAuthenticating} onStart={handleStart} />;
   }
 
   if (screen === SCREEN_NAMES.USER_NAME) {
-    return <UserNameScreen onSubmit={handleRegisterName} />;
+    console.log(`isUserNameRegistered = ${isUserNameRegistered}`);
+    return (
+      <UserNameScreen
+        isUpdate={isUserNameRegistered}
+        onSubmit={handleRegisterName}
+        onBack={() => {
+          if (isUserNameRegistered) {
+            setScreen(SCREEN_NAMES.TOP);
+          }
+        }}
+      />
+    );
   }
 
-  return <TopScreen />;
+  if (screen === SCREEN_NAMES.SETTINGS) {
+    return (
+      <SettingsScreen
+        gameSettings={gameSettings}
+        onChangeGameSettings={setGameSettings}
+        onBack={() => setScreen(SCREEN_NAMES.TOP)}
+      />
+    );
+  }
+
+  if (screen === SCREEN_NAMES.HOW_TO_PLAY) {
+    return <HowToPlayScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
+  if (screen === SCREEN_NAMES.CREDITS) {
+    return <CreditsScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
+  if (screen === SCREEN_NAMES.RANDOM_MATCH) {
+    return <RandomMatchScreen onBackToTop={() => setScreen(SCREEN_NAMES.TOP)} />;
+  }
+
+  if (screen === SCREEN_NAMES.PRIVATE_MATCH) {
+    return (
+      <PrivateMatchScreen
+        gameSettings={gameSettings}
+        onBackToTop={() => setScreen(SCREEN_NAMES.TOP)}
+      />
+    );
+  }
+
+  return (
+    <TopScreen
+      onRandomMatchClick={() => setScreen(SCREEN_NAMES.RANDOM_MATCH)}
+      onPrivateMatchClick={() => setScreen(SCREEN_NAMES.PRIVATE_MATCH)}
+      onRulesClick={() => setScreen(SCREEN_NAMES.HOW_TO_PLAY)}
+      onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
+      onUserNameClick={() => setScreen(SCREEN_NAMES.USER_NAME)}
+      onCreditClick={() => setScreen(SCREEN_NAMES.CREDITS)}
+    />
+  );
 }
 
 export default App;

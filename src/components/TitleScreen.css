@@ -1,0 +1,30 @@
+.title-screen {
+  /* カーソルを指差している手に設定 */
+  cursor: pointer;
+  /* テキスト選択不可 */
+  user-select: none;
+}
+
+.game-title {
+  margin: 110px 0 0;
+  font-size: 64px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.start-message {
+  margin: 0;
+  font-size: 56px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.title-status {
+  margin: 200px 0 110px;
+}
+
+.title-error {
+  margin: 0;
+  color: red;
+  font-size: 32px;
+}

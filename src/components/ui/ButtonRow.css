@@ -1,0 +1,7 @@
+.button-row {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: space-evenly;
+  align-items: center;
+  width: min(100%, 800px);
+}
