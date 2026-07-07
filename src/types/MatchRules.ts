@@ -1,9 +1,9 @@
 export type MatchRules = {
   matchPoint: number;
-  handChoicePeriodInMs: number;
+  thinkingTimeInSec: number;
 };
 
 export const DEFAULT_MATCH_RULES: MatchRules = {
   matchPoint: 5,
-  handChoicePeriodInMs: 5000,
+  thinkingTimeInSec: 5,
 };
