@@ -1,45 +1,9 @@
 import "./TextInput.css";
 
-import {CenterAligningDiv} from "./CenterAligningDiv";
+import React from "react";
 
-type TextInputProps = {
-  minLength?: number;
-  maxLength: number;
-  errorMessage: string;
-  ariaLabel?: string;
-  onChange?: React.ChangeEventHandler<HTMLInputElement>;
-  placeholder?: string;
-  value: string;
-  disabled?: boolean;
-};
+type TextInputProps = React.InputHTMLAttributes<HTMLInputElement> & {};
 
-export function TextInput({
-  minLength = 1,
-  maxLength,
-  errorMessage,
-  ariaLabel,
-  onChange,
-  placeholder,
-  value,
-  disabled = false,
-}: TextInputProps) {
-  return (
-    <CenterAligningDiv>
-      <p className="error-and-annotation">
-        ※{minLength}文字以上{maxLength}
-        文字以下の<br></br>半角英数字・平仮名・片仮名・漢字でのみ入力可能
-      </p>
-      <input
-        className="text-input"
-        type="text"
-        maxLength={maxLength}
-        aria-label={ariaLabel}
-        onChange={onChange}
-        placeholder={placeholder}
-        value={value}
-        disabled={disabled}
-      />
-      {errorMessage && <p className="error-and-annotation">{errorMessage}</p>}
-    </CenterAligningDiv>
-  );
+export function TextInput({...props}: TextInputProps) {
+  return <input className="text-input" {...props} />;
 }

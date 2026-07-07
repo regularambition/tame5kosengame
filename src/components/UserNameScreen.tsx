@@ -6,6 +6,7 @@ import {BackArrowButton} from "./ui/BackArrowButton";
 import {ScreenBanner} from "./ui/ScreenBanner";
 import {SCREEN_NAMES} from "../constants/screenNames";
 import {TextInput} from "./ui/TextInput";
+import {AnnotationText} from "./ui/AnnotationText";
 
 import "./UserNameScreen.css";
 
@@ -29,9 +30,7 @@ export function UserNameScreen({isUpdate, onSubmit, onBack}: UserNameScreenProps
   const handleSubmit = async () => {
     console.log("called handleSubmit");
     if (!isValidUserName(name)) {
-      setError(
-        `${USER_NAME_RULES.MIN_LENGTH}文字以上${USER_NAME_RULES.MAX_LENGTH}文字以下の半角英数字で入力してください`,
-      );
+      setError("入力が不正です");
       return;
     }
 
@@ -48,15 +47,18 @@ export function UserNameScreen({isUpdate, onSubmit, onBack}: UserNameScreenProps
     <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.USER_NAME} />
       {isUpdate && <BackArrowButton onClick={onBack} />}
+      <p>ユーザー名を入力</p>
+      <AnnotationText>
+        ※{USER_NAME_RULES.MAX_LENGTH}文字以下の半角英数字・平仮名・片仮名・漢字のみ
+      </AnnotationText>
       <TextInput
         maxLength={USER_NAME_RULES.MAX_LENGTH}
-        errorMessage={error}
-        aria-label="ユーザー名"
         onChange={handleChange}
         placeholder={isUpdate ? "入力値が空でない場合のみ更新されます" : ""}
         value={name}
         disabled={isSubmitting}
       />
+      {error && <AnnotationText>{error}</AnnotationText>}
       <Button disabled={isSubmitting} onClick={async () => await handleSubmit()}>
         決定
       </Button>
