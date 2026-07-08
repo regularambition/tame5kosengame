@@ -9,6 +9,7 @@ import {GameSettings} from "../types/GameSettings";
 import {AnnotationText} from "./ui/AnnotationText";
 import {TextInput} from "./ui/TextInput";
 import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
+import {createPrivateRoom} from "../api/createPrivateRoom";
 
 import {isValidMatchPoint, isValidThinkingTime, VALID_NUMBER_RANGE} from "@tame5kosengame/shared";
 
@@ -108,17 +109,18 @@ function MatchRulesSettingDiv({
 }
 
 type WaitingForGuestDivProps = {
+  roomId: string;
   matchPoint: string;
   thinkingTime: string;
 };
 
-function WaitingForGuestDiv({matchPoint, thinkingTime}: WaitingForGuestDivProps) {
+function WaitingForGuestDiv({roomId, matchPoint, thinkingTime}: WaitingForGuestDivProps) {
   return (
     <Div>
       <p>
         部屋のID：
         <br />
-        roomQWERTYUIOPASDFGHJKLZXCVBNM
+        {roomId}
       </p>
       <Button onClick={() => {}} type="button">
         部屋IDをコピー
@@ -202,6 +204,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   );
   const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [roomId, setRoomId] = useState<string>("");
 
   const onClickBackArrowButton = () => {
     if (state === STATES.MAKE_OR_ENTER) {
@@ -234,6 +237,16 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
       setIsCreatingRoom(false);
       return;
     }
+
+    try {
+      const resp = await createPrivateRoom(matchPoint, thinkingTime);
+      setRoomId(resp.data.roomId);
+    } catch (error) {
+      setErrorMessage("部屋の作成に失敗しました");
+      setIsCreatingRoom(false);
+      return;
+    }
+
     setErrorMessage("");
     setState(STATES.WAITING_FOR_GUEST);
     setIsCreatingRoom(false);
@@ -261,7 +274,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
         />
       )}
       {state === STATES.WAITING_FOR_GUEST && (
-        <WaitingForGuestDiv matchPoint={matchPoint} thinkingTime={thinkingTime} />
+        <WaitingForGuestDiv roomId={roomId} matchPoint={matchPoint} thinkingTime={thinkingTime} />
       )}
       {state === STATES.ENTERING_ROOM_ID && (
         <EnteringRoomIdDiv
