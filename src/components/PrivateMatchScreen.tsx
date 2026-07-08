@@ -10,8 +10,14 @@ import {AnnotationText} from "./ui/AnnotationText";
 import {TextInput} from "./ui/TextInput";
 import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
 import {createPrivateRoom} from "../api/createPrivateRoom";
+import {enterPrivateRoom} from "../api/enterPrivateRoom";
 
-import {isValidMatchPoint, isValidThinkingTime, VALID_NUMBER_RANGE} from "@tame5kosengame/shared";
+import {
+  isValidJoinCode,
+  isValidMatchPoint,
+  isValidThinkingTime,
+  VALID_NUMBER_RANGE,
+} from "@tame5kosengame/shared";
 
 type PrivateMatchScreenProps = {
   gameSettings: GameSettings;
@@ -140,10 +146,19 @@ function WaitingForGuestDiv({roomId, matchPoint, thinkingTime}: WaitingForGuestD
 
 type EnteringRoomIdDivProps = {
   isPlayer: boolean;
-  onClickEnter: () => void;
+  onClickEnter: () => void | Promise<void>;
+  onChangeJoinCode: React.ChangeEventHandler<HTMLInputElement>;
+  isEntering: boolean;
+  errorMessage: string;
 };
 
-function EnteringRoomIdDiv({isPlayer, onClickEnter}: EnteringRoomIdDivProps) {
+function EnteringRoomIdDiv({
+  isPlayer,
+  onClickEnter,
+  onChangeJoinCode,
+  isEntering,
+  errorMessage,
+}: EnteringRoomIdDivProps) {
   return (
     <Div>
       <p>役割の選択</p>
@@ -165,11 +180,12 @@ function EnteringRoomIdDiv({isPlayer, onClickEnter}: EnteringRoomIdDivProps) {
           観戦者
         </label>
       </div>
-      <p>入る部屋のIDを入力</p>
-      <TextInput></TextInput>
-      <Button onClick={onClickEnter} type="button">
+      <p>入る部屋のIDを入力（8桁の半角数字）</p>
+      <TextInput onChange={onChangeJoinCode} disabled={isEntering}></TextInput>
+      <Button onClick={onClickEnter} type="button" disabled={isEntering}>
         この部屋に入る
       </Button>
+      {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
     </Div>
   );
 }
@@ -205,6 +221,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [joinCode, setJoinCode] = useState<string>("");
+  const [isEntering, setIsEntering] = useState<boolean>(false);
 
   const onClickBackArrowButton = () => {
     if (state === STATES.MAKE_OR_ENTER) {
@@ -253,6 +270,36 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     setIsCreatingRoom(false);
   };
 
+  const handleChangeJoinCode: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const nextJoinCode = event.target.value;
+    setJoinCode(nextJoinCode);
+    setErrorMessage("");
+  };
+
+  const handleEnteringRoom = async () => {
+    setIsEntering(true);
+    if (!isValidJoinCode(joinCode)) {
+      setErrorMessage("部屋IDの入力に不正な値が渡されています");
+      setIsEntering(false);
+      return;
+    }
+
+    try {
+      const resp = await enterPrivateRoom(joinCode);
+      const {roomId, hostUid} = resp.data;
+      console.log(`roomId = ${roomId}`);
+      console.log(`hostUid = ${hostUid}`);
+    } catch (error) {
+      setErrorMessage("部屋が見つかりませんでした");
+      setIsEntering(false);
+      return;
+    }
+
+    setErrorMessage("");
+    setState(STATES.WAITING_FOR_HOST_OPERATION);
+    setIsEntering(false);
+  };
+
   return (
     <main className="screen not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.PRIVATE_MATCH} />
@@ -280,7 +327,10 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
       {state === STATES.ENTERING_ROOM_ID && (
         <EnteringRoomIdDiv
           isPlayer={isPlayer}
-          onClickEnter={() => setState(STATES.WAITING_FOR_HOST_OPERATION)}
+          onClickEnter={handleEnteringRoom}
+          onChangeJoinCode={handleChangeJoinCode}
+          isEntering={isEntering}
+          errorMessage={errorMessage}
         ></EnteringRoomIdDiv>
       )}
       {state === STATES.WAITING_FOR_HOST_OPERATION && (

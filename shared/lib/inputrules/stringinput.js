@@ -3,7 +3,7 @@ export const USER_NAME_RULES = {
     MAX_LENGTH: 16,
     CHAR_CLASS: "[A-Za-z0-9ぁ-んァ-ヶー一-龯]",
 };
-export const ROOM_ID_RULES = {
+export const JOIN_CODE_RULES = {
     LENGTH: 8,
     CHAR_CLASS: "[0-9]",
 };

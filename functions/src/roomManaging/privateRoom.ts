@@ -4,14 +4,24 @@ import {randomInt, createHmac} from "crypto";
 
 import {db} from "../firebaseAdmin";
 
-import {isValidMatchPoint, isValidThinkingTime, ROOM_ID_RULES} from "@tame5kosengame/shared";
-import type {CreatePrivateRoomRequest, CreatePrivateRoomResponse} from "@tame5kosengame/shared";
+import {
+  isValidMatchPoint,
+  isValidThinkingTime,
+  JOIN_CODE_RULES,
+  isValidJoinCode,
+} from "@tame5kosengame/shared";
+import type {
+  CreatePrivateRoomRequest,
+  CreatePrivateRoomResponse,
+  EnterPrivateRoomRequest,
+  EnterPrivateRoomResponse,
+} from "@tame5kosengame/shared";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
 const MAX_JOIN_CODE_GENERATION_ATTEMPTS = 10;
 
 function generateJoinCode() {
-  return randomInt(ROOM_ID_SPACE_SIZE).toString().padStart(ROOM_ID_RULES.LENGTH, "0");
+  return randomInt(ROOM_ID_SPACE_SIZE).toString().padStart(JOIN_CODE_RULES.LENGTH, "0");
 }
 
 function hashJoinCode(joinCode: string) {
@@ -54,7 +64,6 @@ async function reserveJoinCode(internalRoomId: string) {
 export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
   {secrets: ["JOIN_CODE_SECRET"]}, // process.env.JOIN_CODE_SECRET による環境変数の参照を有効化
   async (request): Promise<CreatePrivateRoomResponse> => {
-    // Firebase Authenticationでログイン済みか確認
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
@@ -79,7 +88,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
     try {
       await db.ref().update({
         [`privateRooms/${internalRoomId}`]: {
-          hostUid,
+          hostUid: hostUid,
           createdAt: ServerValue.TIMESTAMP,
           rules: {
             matchPoint: parseInt(matchPoint),
@@ -100,5 +109,64 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
     }
 
     return {roomId: internalRoomId, joinCode: joinCode};
+  },
+);
+
+export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
+  {secrets: ["JOIN_CODE_SECRET"]}, // process.env.JOIN_CODE_SECRET による環境変数の参照を有効化
+  async (request): Promise<EnterPrivateRoomResponse> => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const guestUid = request.auth.uid;
+    const {joinCode} = request.data;
+    if (!isValidJoinCode(joinCode)) {
+      throw new HttpsError("invalid-argument", "Invalid join code.");
+    }
+
+    const joinCodeHash = hashJoinCode(joinCode);
+    const joinCodeSnapshot = await db.ref(`privateRoomJoinCodes/${joinCodeHash}`).get();
+    if (!joinCodeSnapshot.exists()) {
+      throw new HttpsError("not-found", "Private room not found.");
+    }
+
+    const roomId = joinCodeSnapshot.child("roomId").val();
+    if (typeof roomId !== "string") {
+      throw new HttpsError("internal", "Invalid private room join code data.");
+    }
+
+    const roomRef = db.ref(`privateRooms/${roomId}`);
+    const roomSnapshot = await roomRef.get();
+    if (!roomSnapshot.exists()) {
+      throw new HttpsError("not-found", "Private room not found.");
+    }
+
+    const hostUid = roomSnapshot.child("hostUid").val();
+    if (typeof hostUid !== "string") {
+      throw new HttpsError("internal", "Invalid private room data.");
+    }
+    if (hostUid === guestUid) {
+      throw new HttpsError("failed-precondition", "Host cannot enter as guest.");
+    }
+
+    const guestUidRef = roomRef.child("guestUid");
+    const result = await guestUidRef.transaction((currentGuestUid) => {
+      if (currentGuestUid !== null) {
+        return undefined;
+      }
+
+      return guestUid;
+    });
+    if (!result.committed) {
+      throw new HttpsError("failed-precondition", "Private room is already occupied.");
+    }
+
+    // await roomRef.child("guestJoinedAt").set(ServerValue.TIMESTAMP);
+
+    return {
+      roomId: roomId,
+      hostUid: hostUid,
+    };
   },
 );
