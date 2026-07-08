@@ -204,7 +204,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   );
   const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [roomId, setRoomId] = useState<string>("");
+  const [joinCode, setJoinCode] = useState<string>("");
 
   const onClickBackArrowButton = () => {
     if (state === STATES.MAKE_OR_ENTER) {
@@ -240,7 +240,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
 
     try {
       const resp = await createPrivateRoom(matchPoint, thinkingTime);
-      setRoomId(resp.data.roomId);
+      setJoinCode(resp.data.joinCode);
+      console.log(`roomId = ${resp.data.roomId}`);
     } catch (error) {
       setErrorMessage("部屋の作成に失敗しました");
       setIsCreatingRoom(false);
@@ -274,7 +275,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
         />
       )}
       {state === STATES.WAITING_FOR_GUEST && (
-        <WaitingForGuestDiv roomId={roomId} matchPoint={matchPoint} thinkingTime={thinkingTime} />
+        <WaitingForGuestDiv roomId={joinCode} matchPoint={matchPoint} thinkingTime={thinkingTime} />
       )}
       {state === STATES.ENTERING_ROOM_ID && (
         <EnteringRoomIdDiv

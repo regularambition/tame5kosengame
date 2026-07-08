@@ -10,7 +10,7 @@
 import {setGlobalOptions} from "firebase-functions";
 
 import {ensureUserProfile, updateUserName} from "./auth/anonymousSignin";
-import {createPrivateRoom} from "./roomManaging/createPrivateRoom";
+import {createPrivateRoom} from "./roomManaging/privateRoom";
 
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";

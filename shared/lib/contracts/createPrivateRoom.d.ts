@@ -4,4 +4,5 @@ export type CreatePrivateRoomRequest = {
 };
 export type CreatePrivateRoomResponse = {
     roomId: string;
+    joinCode: string;
 };

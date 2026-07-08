@@ -70,3 +70,8 @@ npm run sync:shared
 
 - npx.cmd tsc -b
 - npx.cmd prettier --check {対象ファイルのパス}
+
+### 暗号化処理の際におけるprocess.env.JOIN_CODE_SECRETの値設定(プロジェクトルートで実行)
+
+以下のコマンドを実行すると設定値の入力を求められるため十分な長さを持つランダム文字列を設定する
+firebase functions:secrets:set JOIN_CODE_SECRET
