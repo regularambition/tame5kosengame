@@ -7,3 +7,7 @@ export declare const JOIN_CODE_RULES: {
     readonly LENGTH: 8;
     readonly CHAR_CLASS: "[0-9]";
 };
+export declare const PUSH_ID_RULES: {
+    readonly LENGTH: 20;
+    readonly CHAR_CLASS: "[-0-9A-Z_a-z]";
+};

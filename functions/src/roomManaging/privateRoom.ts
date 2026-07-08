@@ -9,6 +9,7 @@ import {
   isValidThinkingTime,
   JOIN_CODE_RULES,
   isValidJoinCode,
+  isValidPushId,
 } from "@tame5kosengame/shared";
 import type {
   CreatePrivateRoomRequest,
@@ -177,8 +178,12 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
 
+    // const uid = request.auth.uid;
     const {isPlayer, roomId} = request.data;
     console.log(`isPlayer = ${isPlayer}`);
+    if (!isValidPushId(roomId)) {
+      throw new HttpsError("invalid-argument", "Invalid room ID.");
+    }
 
     const roomRef = db.ref(`privateRooms/${roomId}`);
     const roomSnapshot = await roomRef.get();

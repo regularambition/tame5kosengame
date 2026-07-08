@@ -18,6 +18,7 @@ import {
   isValidMatchPoint,
   isValidThinkingTime,
   VALID_NUMBER_RANGE,
+  isValidPushId,
 } from "@tame5kosengame/shared";
 
 type PrivateMatchScreenProps = {
@@ -233,7 +234,20 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     } else if (state === STATES.WAITING_FOR_GUEST) {
       setState(STATES.MAKE_OR_ENTER);
     } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
-      await leavePrivateRoom(isPlayer, roomId);
+      if (!isValidPushId(roomId)) {
+        alert("部屋IDに不正な値が入っています");
+        return;
+      }
+
+      try {
+        await leavePrivateRoom(isPlayer, roomId);
+      } catch (error) {
+        console.log(error);
+        alert("退出に失敗しました");
+        return;
+      }
+
+      setRoomId("");
       setState(STATES.MAKE_OR_ENTER);
     }
   };

@@ -1,9 +1,10 @@
-import { USER_NAME_RULES, VALID_NUMBER_RANGE, JOIN_CODE_RULES, } from "../inputrules/index.js";
+import { USER_NAME_RULES, VALID_NUMBER_RANGE, JOIN_CODE_RULES, PUSH_ID_RULES, } from "../inputrules/index.js";
 const REGULAR_EXPRESSIONS = {
     USER_NAME: new RegExp(`^${USER_NAME_RULES.CHAR_CLASS}{${USER_NAME_RULES.MIN_LENGTH},${USER_NAME_RULES.MAX_LENGTH}}$`),
     MATCH_POINT: new RegExp("^[1-9]{1}[0-9]{0,1}$"),
     THINKING_TIME: new RegExp("^[1-9]{1}[0-9]{0,1}$"),
     JOIN_CODE: new RegExp(`${JOIN_CODE_RULES.CHAR_CLASS}{${JOIN_CODE_RULES.LENGTH}}$`),
+    PUSH_ID: new RegExp(`${PUSH_ID_RULES.CHAR_CLASS}{${PUSH_ID_RULES.LENGTH}}$`),
 };
 function isValidStringInput(str, regex) {
     return regex.test(str);
@@ -28,6 +29,9 @@ export function isValidThinkingTime(thinkingTime) {
     const num = parseInt(thinkingTime);
     return isIncludedByValidRange(num, VALID_NUMBER_RANGE.THINKING_TIME);
 }
-export function isValidJoinCode(roomId) {
-    return isValidStringInput(roomId, REGULAR_EXPRESSIONS.JOIN_CODE);
+export function isValidJoinCode(joinCode) {
+    return isValidStringInput(joinCode, REGULAR_EXPRESSIONS.JOIN_CODE);
+}
+export function isValidPushId(pushId) {
+    return isValidStringInput(pushId, REGULAR_EXPRESSIONS.PUSH_ID);
 }
