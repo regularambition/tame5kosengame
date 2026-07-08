@@ -15,6 +15,8 @@ import type {
   CreatePrivateRoomResponse,
   EnterPrivateRoomRequest,
   EnterPrivateRoomResponse,
+  LeavePrivateRoomRequest,
+  LeavePrivateRoomResponse,
 } from "@tame5kosengame/shared";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
@@ -162,11 +164,32 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("failed-precondition", "Private room is already occupied.");
     }
 
-    // await roomRef.child("guestJoinedAt").set(ServerValue.TIMESTAMP);
-
     return {
       roomId: roomId,
       hostUid: hostUid,
+    };
+  },
+);
+
+export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
+  async (request): Promise<LeavePrivateRoomResponse> => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const {isPlayer, roomId} = request.data;
+    console.log(`isPlayer = ${isPlayer}`);
+
+    const roomRef = db.ref(`privateRooms/${roomId}`);
+    const roomSnapshot = await roomRef.get();
+    if (!roomSnapshot.exists()) {
+      throw new HttpsError("not-found", "Private room not found.");
+    }
+
+    await roomRef.child("guestUid").remove();
+
+    return {
+      hasSucceeded: true,
     };
   },
 );

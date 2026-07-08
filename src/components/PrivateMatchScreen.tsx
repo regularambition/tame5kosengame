@@ -11,6 +11,7 @@ import {TextInput} from "./ui/TextInput";
 import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
 import {createPrivateRoom} from "../api/createPrivateRoom";
 import {enterPrivateRoom} from "../api/enterPrivateRoom";
+import {leavePrivateRoom} from "../api/leavePrivateRoom";
 
 import {
   isValidJoinCode,
@@ -222,8 +223,9 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [joinCode, setJoinCode] = useState<string>("");
   const [isEntering, setIsEntering] = useState<boolean>(false);
+  const [roomId, setRoomId] = useState<string>("");
 
-  const onClickBackArrowButton = () => {
+  const onClickBackArrowButton = async () => {
     if (state === STATES.MAKE_OR_ENTER) {
       onBackToTop();
     } else if (state === STATES.MATCH_RULES_SETTING || state === STATES.ENTERING_ROOM_ID) {
@@ -231,6 +233,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     } else if (state === STATES.WAITING_FOR_GUEST) {
       setState(STATES.MAKE_OR_ENTER);
     } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
+      await leavePrivateRoom(isPlayer, roomId);
       setState(STATES.MAKE_OR_ENTER);
     }
   };
@@ -257,8 +260,10 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
 
     try {
       const resp = await createPrivateRoom(matchPoint, thinkingTime);
-      setJoinCode(resp.data.joinCode);
-      console.log(`roomId = ${resp.data.roomId}`);
+      const {joinCode, roomId} = resp.data;
+      setJoinCode(joinCode);
+      console.log(`roomId = ${roomId}`);
+      setRoomId(roomId);
     } catch (error) {
       setErrorMessage("部屋の作成に失敗しました");
       setIsCreatingRoom(false);
@@ -289,6 +294,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
       const {roomId, hostUid} = resp.data;
       console.log(`roomId = ${roomId}`);
       console.log(`hostUid = ${hostUid}`);
+      setRoomId(roomId);
     } catch (error) {
       setErrorMessage("部屋が見つかりませんでした");
       setIsEntering(false);
