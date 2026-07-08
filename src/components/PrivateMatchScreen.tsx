@@ -1,4 +1,4 @@
-import {ReactNode, useState} from "react";
+import {useState} from "react";
 
 import {Button} from "./ui/Button";
 import {ButtonRow} from "./ui/ButtonRow";
@@ -9,6 +9,8 @@ import {GameSettings} from "../types/GameSettings";
 import {AnnotationText} from "./ui/AnnotationText";
 import {TextInput} from "./ui/TextInput";
 import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
+
+import {isValidMatchPoint, isValidThinkingTime, VALID_NUMBER_RANGE} from "@tame5kosengame/shared";
 
 type PrivateMatchScreenProps = {
   gameSettings: GameSettings;
@@ -54,11 +56,13 @@ function MakeOrEnterDiv({onClickMake, onClickEnter}: MakeOrEnterDivProps) {
 }
 
 type MatchRulesSettingDivProps = {
-  onChangeMatchPoint: () => void;
-  onChangeThinkingTime: () => void;
-  onRoomCreating: () => void;
-  matchPoint: number;
-  thinkingTime: number;
+  onChangeMatchPoint: React.ChangeEventHandler<HTMLInputElement>;
+  onChangeThinkingTime: React.ChangeEventHandler<HTMLInputElement>;
+  onRoomCreating: () => void | Promise<void>;
+  matchPoint: string;
+  thinkingTime: string;
+  isCreatingRoom: boolean;
+  errorMessage: string;
 };
 
 function MatchRulesSettingDiv({
@@ -67,6 +71,8 @@ function MatchRulesSettingDiv({
   onRoomCreating,
   matchPoint,
   thinkingTime,
+  isCreatingRoom,
+  errorMessage,
 }: MatchRulesSettingDivProps) {
   return (
     <Div>
@@ -75,20 +81,35 @@ function MatchRulesSettingDiv({
         <br />
         対戦相手や観戦者に部屋IDを連携してください
       </AnnotationText>
-      <p>決着点数</p>
-      <TextInput onChange={onChangeMatchPoint} value={matchPoint}></TextInput>
-      <p>毎ターンの持ち時間（秒）</p>
-      <TextInput onChange={onChangeThinkingTime} value={thinkingTime}></TextInput>
-      <Button onClick={onRoomCreating} type="button">
+      <p>
+        決着点数（{VALID_NUMBER_RANGE.MATCH_POINT.minimum}以上
+        {VALID_NUMBER_RANGE.MATCH_POINT.maximum}以下の整数値）
+      </p>
+      <TextInput
+        onChange={onChangeMatchPoint}
+        value={matchPoint}
+        disabled={isCreatingRoom}
+      ></TextInput>
+      <p>
+        毎ターンの持ち時間（秒単位、{VALID_NUMBER_RANGE.THINKING_TIME.minimum}以上
+        {VALID_NUMBER_RANGE.THINKING_TIME.maximum}以下の整数値）
+      </p>
+      <TextInput
+        onChange={onChangeThinkingTime}
+        value={thinkingTime}
+        disabled={isCreatingRoom}
+      ></TextInput>
+      <Button onClick={onRoomCreating} type="button" disabled={isCreatingRoom}>
         この条件で建てる
       </Button>
+      {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
     </Div>
   );
 }
 
 type WaitingForGuestDivProps = {
-  matchPoint: number;
-  thinkingTime: number;
+  matchPoint: string;
+  thinkingTime: string;
 };
 
 function WaitingForGuestDiv({matchPoint, thinkingTime}: WaitingForGuestDivProps) {
@@ -175,8 +196,12 @@ function WaitingForHostOperationDiv({isPlayer}: WaitingForHostOperationDivProps)
 export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScreenProps) {
   const [state, setState] = useState<StateId>(STATES.MAKE_OR_ENTER);
   const [isPlayer, setIsPlayer] = useState<boolean>(true);
-  const [matchPoint, setMatchPoint] = useState<number>(DEFAULT_MATCH_RULES.matchPoint);
-  const [thinkingTime, setThinkingTime] = useState<number>(DEFAULT_MATCH_RULES.thinkingTimeInSec);
+  const [matchPoint, setMatchPoint] = useState<string>(`${DEFAULT_MATCH_RULES.matchPoint}`);
+  const [thinkingTime, setThinkingTime] = useState<string>(
+    `${DEFAULT_MATCH_RULES.thinkingTimeInSec}`,
+  );
+  const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const onClickBackArrowButton = () => {
     if (state === STATES.MAKE_OR_ENTER) {
@@ -190,7 +215,29 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     }
   };
 
-  const handleChangeMatchPoint = () => {};
+  const handleChangeMatchPoint: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const nextMatchPoint = event.target.value;
+    setMatchPoint(nextMatchPoint);
+    setErrorMessage("");
+  };
+
+  const handleChangeThinkingTime: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const nextMatchThinkingTime = event.target.value;
+    setThinkingTime(nextMatchThinkingTime);
+    setErrorMessage("");
+  };
+
+  const handleRoomCreating = async () => {
+    setIsCreatingRoom(true);
+    if (!isValidMatchPoint(matchPoint) || !isValidThinkingTime(thinkingTime)) {
+      setErrorMessage("ルールの入力に不正な値が渡されています");
+      setIsCreatingRoom(false);
+      return;
+    }
+    setErrorMessage("");
+    setState(STATES.WAITING_FOR_GUEST);
+    setIsCreatingRoom(false);
+  };
 
   return (
     <main className="screen not-playing-text-general">
@@ -205,10 +252,12 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
       {state === STATES.MATCH_RULES_SETTING && (
         <MatchRulesSettingDiv
           onChangeMatchPoint={handleChangeMatchPoint}
-          onChangeThinkingTime={() => {}}
-          onRoomCreating={() => setState(STATES.WAITING_FOR_GUEST)}
+          onChangeThinkingTime={handleChangeThinkingTime}
+          onRoomCreating={handleRoomCreating}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}
+          isCreatingRoom={isCreatingRoom}
+          errorMessage={errorMessage}
         />
       )}
       {state === STATES.WAITING_FOR_GUEST && (
