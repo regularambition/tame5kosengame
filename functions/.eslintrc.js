@@ -26,6 +26,7 @@ module.exports = {
     quotes: ["error", "double"],
     "quote-props": "off",
     "max-len": "off",
+    "require-jsdoc": "off",
     "import/no-unresolved": 0,
     indent: ["error", 2],
   },

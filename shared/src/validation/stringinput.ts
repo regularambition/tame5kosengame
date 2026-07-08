@@ -1,4 +1,9 @@
-import {USER_NAME_RULES, VALID_NUMBER_RANGE, ValidNumberRangeId} from "../inputrules/index.js";
+import {
+  USER_NAME_RULES,
+  VALID_NUMBER_RANGE,
+  ValidNumberRangeId,
+  ROOM_ID_RULES,
+} from "../inputrules/index.js";
 
 const REGULAR_EXPRESSIONS = {
   USER_NAME: new RegExp(
@@ -6,6 +11,7 @@ const REGULAR_EXPRESSIONS = {
   ),
   MATCH_POINT: new RegExp("^[1-9]{1}[0-9]{0,1}$"),
   THINKING_TIME: new RegExp("^[1-9]{1}[0-9]{0,1}$"),
+  ROOM_ID: new RegExp(`${ROOM_ID_RULES.CHAR_CLASS}{${ROOM_ID_RULES.LENGTH}}$`),
 } as const;
 
 function isValidStringInput(str: string, regex: RegExp): boolean {
@@ -36,4 +42,8 @@ export function isValidThinkingTime(thinkingTime: string): boolean {
 
   const num = parseInt(thinkingTime);
   return isIncludedByValidRange(num, VALID_NUMBER_RANGE.THINKING_TIME);
+}
+
+export function isValidRoomId(roomId: string): boolean {
+  return isValidStringInput(roomId, REGULAR_EXPRESSIONS.ROOM_ID);
 }
