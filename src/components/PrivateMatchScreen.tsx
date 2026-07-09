@@ -152,6 +152,8 @@ type EnteringRoomIdDivProps = {
   onChangeJoinCode: React.ChangeEventHandler<HTMLInputElement>;
   isEntering: boolean;
   errorMessage: string;
+  onChangeLeftRadio: () => void;
+  onChangeRightRadio: () => void;
 };
 
 function EnteringRoomIdDiv({
@@ -160,25 +162,19 @@ function EnteringRoomIdDiv({
   onChangeJoinCode,
   isEntering,
   errorMessage,
+  onChangeLeftRadio,
+  onChangeRightRadio,
 }: EnteringRoomIdDivProps) {
   return (
     <Div>
       <p>役割の選択</p>
       <div className="settings-radio-group">
         <label className="settings-radio-label">
-          <input
-            checked={isPlayer}
-            // onChange={() => handleChangeHighlightHand(true)}
-            type="radio"
-          />
+          <input checked={isPlayer} onChange={onChangeLeftRadio} type="radio" />
           対戦相手
         </label>
         <label className="settings-radio-label">
-          <input
-            checked={!isPlayer}
-            // onChange={() => handleChangeHighlightHand(false)}
-            type="radio"
-          />
+          <input checked={!isPlayer} onChange={onChangeRightRadio} type="radio" />
           観戦者
         </label>
       </div>
@@ -225,6 +221,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   const [joinCode, setJoinCode] = useState<string>("");
   const [isEntering, setIsEntering] = useState<boolean>(false);
   const [roomId, setRoomId] = useState<string>("");
+
+  // console.log(`isPlayer = ${isPlayer}`);
 
   const onClickBackArrowButton = async () => {
     if (state === STATES.MAKE_OR_ENTER) {
@@ -351,6 +349,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
           onChangeJoinCode={handleChangeJoinCode}
           isEntering={isEntering}
           errorMessage={errorMessage}
+          onChangeLeftRadio={() => setIsPlayer(true)}
+          onChangeRightRadio={() => setIsPlayer(false)}
         ></EnteringRoomIdDiv>
       )}
       {state === STATES.WAITING_FOR_HOST_OPERATION && (
