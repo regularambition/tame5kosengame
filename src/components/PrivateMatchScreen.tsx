@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 
 import {Button} from "./ui/Button";
 import {ButtonRow} from "./ui/ButtonRow";
@@ -13,6 +13,7 @@ import {createPrivateRoom} from "../api/createPrivateRoom";
 import {enterPrivateRoom} from "../api/enterPrivateRoom";
 import {leavePrivateRoom} from "../api/leavePrivateRoom";
 import {deletePrivateRoom} from "../api/deletePrivateRoom";
+import {watchPrivateRoomDeleted} from "../api/watchPrivateRoom";
 
 import {
   isValidJoinCode,
@@ -223,7 +224,20 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   const [isEntering, setIsEntering] = useState<boolean>(false);
   const [roomId, setRoomId] = useState<string>("");
 
-  // console.log(`isPlayer = ${isPlayer}`);
+  useEffect(() => {
+    if (!roomId || state !== STATES.WAITING_FOR_HOST_OPERATION) {
+      return;
+    }
+
+    const unsubscribe = watchPrivateRoomDeleted(roomId, () => {
+      alert("部屋が削除されました");
+      setRoomId("");
+      setJoinCode("");
+      setState(STATES.MAKE_OR_ENTER);
+    });
+
+    return unsubscribe;
+  }, [roomId, state]);
 
   const onClickBackArrowButton = async () => {
     if (state === STATES.MAKE_OR_ENTER) {
@@ -243,6 +257,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
         alert("部屋の解散に失敗しました");
         return;
       }
+      setRoomId("");
       setState(STATES.MAKE_OR_ENTER);
     } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
       if (!isValidPushId(roomId)) {

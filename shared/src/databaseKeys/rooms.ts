@@ -1,4 +1,4 @@
-import {ROOT_KEYS} from "./root";
+import {ROOT_KEYS} from "./root.js";
 
 export const GENERAL_ROOM_KEYS = {
   CREATED_AT: "createdAt",
