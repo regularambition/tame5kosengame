@@ -37,12 +37,13 @@ function generateJoinCode() {
   return randomInt(ROOM_ID_SPACE_SIZE).toString().padStart(JOIN_CODE_RULES.LENGTH, "0");
 }
 
+const JOIN_CODE_SECRET_KEY = "JOIN_CODE_SECRET";
 function hashJoinCode(joinCode: string) {
   // Cloud Functionsの環境変数として設定された値を参照
-  const secret = process.env.JOIN_CODE_SECRET;
+  const secret = process.env[JOIN_CODE_SECRET_KEY];
 
   if (!secret) {
-    throw new HttpsError("failed-precondition", "JOIN_CODE_SECRET is not configured.");
+    throw new HttpsError("failed-precondition", `${JOIN_CODE_SECRET_KEY} is not configured.`);
   }
 
   return createHmac("sha256", secret).update(joinCode).digest("hex");
@@ -80,7 +81,7 @@ async function reserveJoinCode(internalRoomId: string) {
 }
 
 export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
-  {secrets: ["JOIN_CODE_SECRET"]}, // process.env.JOIN_CODE_SECRET による環境変数の参照を有効化
+  {secrets: [JOIN_CODE_SECRET_KEY]}, // process.env[JOIN_CODE_SECRET_KEY] による環境変数の参照を有効化
   async (request): Promise<CreatePrivateRoomResponse> => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required.");
@@ -133,7 +134,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
 );
 
 export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
-  {secrets: ["JOIN_CODE_SECRET"]}, // process.env.JOIN_CODE_SECRET による環境変数の参照を有効化
+  {secrets: [JOIN_CODE_SECRET_KEY]},
   async (request): Promise<EnterPrivateRoomResponse> => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required.");
