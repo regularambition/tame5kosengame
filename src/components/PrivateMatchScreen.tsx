@@ -223,6 +223,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   const [joinCode, setJoinCode] = useState<string>("");
   const [isEntering, setIsEntering] = useState<boolean>(false);
   const [roomId, setRoomId] = useState<string>("");
+  const [isBackProcessing, setIsBackProcessing] = useState<boolean>(false);
 
   useEffect(() => {
     if (!roomId || state !== STATES.WAITING_FOR_HOST_OPERATION) {
@@ -240,6 +241,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   }, [roomId, state]);
 
   const onClickBackArrowButton = async () => {
+    setIsBackProcessing(true);
     if (state === STATES.MAKE_OR_ENTER) {
       onBackToTop();
     } else if (state === STATES.MATCH_RULES_SETTING || state === STATES.ENTERING_JOIN_CODE) {
@@ -247,6 +249,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     } else if (state === STATES.WAITING_FOR_GUEST) {
       if (!isValidPushId(roomId)) {
         alert("部屋IDに不正な値が入っています");
+        setIsBackProcessing(false);
         return;
       }
 
@@ -255,6 +258,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
       } catch (error) {
         console.log(error);
         alert("部屋の解散に失敗しました");
+        setIsBackProcessing(false);
         return;
       }
       setRoomId("");
@@ -262,20 +266,22 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
       if (!isValidPushId(roomId)) {
         alert("部屋IDに不正な値が入っています");
+        setIsBackProcessing(false);
         return;
       }
 
       try {
         await leavePrivateRoom(isPlayer, roomId);
       } catch (error) {
-        console.log(error);
         alert("退出に失敗しました");
+        setIsBackProcessing(false);
         return;
       }
 
       setRoomId("");
       setState(STATES.MAKE_OR_ENTER);
     }
+    setIsBackProcessing(false);
   };
 
   const handleChangeMatchPoint: React.ChangeEventHandler<HTMLInputElement> = (event) => {
@@ -349,7 +355,10 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   return (
     <main className="screen not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.PRIVATE_MATCH} />
-      <BackArrowButton onClick={onClickBackArrowButton} />
+      <BackArrowButton
+        onClick={onClickBackArrowButton}
+        disabled={isBackProcessing || isCreatingRoom || isEntering}
+      />
       {state === STATES.MAKE_OR_ENTER && (
         <MakeOrEnterDiv
           onClickMake={() => setState(STATES.MATCH_RULES_SETTING)}
