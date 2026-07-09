@@ -5,6 +5,13 @@ import {randomInt, createHmac} from "crypto";
 import {db} from "../firebaseAdmin";
 
 import {
+  DATABASE_PATHS,
+  GENERAL_ROOM_KEYS,
+  PRIVATE_ROOM_JOIN_CODE_KEYS,
+  PRIVATE_ROOM_KEYS,
+} from "../databaseKeys";
+
+import {
   isValidMatchPoint,
   isValidThinkingTime,
   JOIN_CODE_RULES,
@@ -45,7 +52,7 @@ async function reserveJoinCode(internalRoomId: string) {
   for (let i = 0; i < MAX_JOIN_CODE_GENERATION_ATTEMPTS; i++) {
     const joinCode = generateJoinCode();
     const joinCodeHash = hashJoinCode(joinCode);
-    const joinCodeRef = db.ref(`privateRoomJoinCodes/${joinCodeHash}`);
+    const joinCodeRef = db.ref(DATABASE_PATHS.privateRoomJoinCode(joinCodeHash));
 
     // transaction処理を導入することにより「nullだから書き込める」
     // と判断して書き込みを行おうとした時に他のリクエストによる処理が割り込んできて
@@ -59,8 +66,8 @@ async function reserveJoinCode(internalRoomId: string) {
       }
 
       return {
-        roomId: internalRoomId,
-        createdAt: ServerValue.TIMESTAMP,
+        [PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID]: internalRoomId,
+        [PRIVATE_ROOM_JOIN_CODE_KEYS.CREATED_AT]: ServerValue.TIMESTAMP,
       };
     });
 
@@ -87,7 +94,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
 
     // push実行直後時点ではIDが発行されるだけであって
     // データが作られるのは下のupdateが走って初めてである
-    const internalRoomRef = db.ref("privateRooms").push();
+    const internalRoomRef = db.ref(DATABASE_PATHS.privateRoomsRoot()).push();
     const internalRoomId = internalRoomRef.key;
 
     if (!internalRoomId) {
@@ -98,17 +105,17 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
 
     try {
       await db.ref().update({
-        [`privateRooms/${internalRoomId}`]: {
-          hostUid: hostUid,
-          createdAt: ServerValue.TIMESTAMP,
-          rules: {
-            matchPoint: parseInt(matchPoint),
-            thinkingTimeInSec: parseInt(thinkingTime),
+        [DATABASE_PATHS.privateRoom(internalRoomId)]: {
+          [PRIVATE_ROOM_KEYS.HOST_UID]: hostUid,
+          [GENERAL_ROOM_KEYS.CREATED_AT]: ServerValue.TIMESTAMP,
+          [GENERAL_ROOM_KEYS.RULES]: {
+            [GENERAL_ROOM_KEYS.MATCH_POINT]: parseInt(matchPoint),
+            [GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC]: parseInt(thinkingTime),
           },
-          joinCodeHash: joinCodeHash,
-          state: ROOM_STATES.PREPARING,
+          [PRIVATE_ROOM_KEYS.JOIN_CODE_HASH]: joinCodeHash,
+          [GENERAL_ROOM_KEYS.STATE]: ROOM_STATES.PREPARING,
         },
-        [`privateRoomJoinCodes/${joinCodeHash}/roomId`]: internalRoomId,
+        [DATABASE_PATHS.privateRoomJoinCodeRoomId(joinCodeHash)]: internalRoomId,
       });
     } catch (error) {
       // multi-location updateはatomicなので「どちらか一方への書き込みだけ成功」
@@ -117,7 +124,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
       // privateRoomsおよびprivateRoomJoinCodesの両方とも書き込まれていない状態である
       // しかしこの行に到達している時点でハッシュ化された参加コードの予約は終わっているため
       // 後者については明示的に削除処理が必須となる
-      await db.ref(`privateRoomJoinCodes/${joinCodeHash}`).remove();
+      await db.ref(DATABASE_PATHS.privateRoomJoinCode(joinCodeHash)).remove();
       throw error;
     }
 
@@ -142,23 +149,23 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
     }
 
     const joinCodeHash = hashJoinCode(joinCode);
-    const joinCodeSnapshot = await db.ref(`privateRoomJoinCodes/${joinCodeHash}`).get();
+    const joinCodeSnapshot = await db.ref(DATABASE_PATHS.privateRoomJoinCode(joinCodeHash)).get();
     if (!joinCodeSnapshot.exists()) {
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const roomId = joinCodeSnapshot.child("roomId").val();
+    const roomId = joinCodeSnapshot.child(PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID).val();
     if (typeof roomId !== "string") {
       throw new HttpsError("internal", "Invalid private room join code data.");
     }
 
-    const roomRef = db.ref(`privateRooms/${roomId}`);
+    const roomRef = db.ref(DATABASE_PATHS.privateRoom(roomId));
     const roomSnapshot = await roomRef.get();
     if (!roomSnapshot.exists()) {
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child("hostUid").val();
+    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST_UID).val();
     if (typeof hostUid !== "string") {
       throw new HttpsError("internal", "Invalid private room data.");
     }
@@ -167,7 +174,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
     }
 
     if (isPlayer) {
-      const guestUidRef = roomRef.child("guestUid");
+      const guestUidRef = roomRef.child(PRIVATE_ROOM_KEYS.GUEST_UID);
       const result = await guestUidRef.transaction((currentGuestUid) => {
         if (currentGuestUid !== null) {
           return undefined;
@@ -179,12 +186,12 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
         throw new HttpsError("failed-precondition", "Private room is already occupied.");
       }
 
-      await roomRef.child(`spectators/${uid}`).remove();
+      await roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid).remove();
     } else {
-      const spectatorRef = roomRef.child(`spectators/${uid}`);
+      const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS);
 
       await spectatorRef.set({
-        joinedAt: ServerValue.TIMESTAMP,
+        [uid]: true,
       });
     }
 
@@ -210,7 +217,7 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       throw new HttpsError("invalid-argument", "Invalid request.");
     }
 
-    const roomRef = db.ref(`privateRooms/${roomId}`);
+    const roomRef = db.ref(DATABASE_PATHS.privateRoom(roomId));
     const roomSnapshot = await roomRef.get();
     if (!roomSnapshot.exists()) {
       throw new HttpsError("not-found", "Private room not found.");
@@ -232,7 +239,8 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           }
         }
 
-        if (currentRoom.guestUid === null || currentRoom.guestUid === undefined) {
+        const guestUid = currentRoom[PRIVATE_ROOM_KEYS.GUEST_UID];
+        if (guestUid === null || guestUid === undefined) {
           if (retryCount > 0) {
             --retryCount;
             return currentRoom;
@@ -241,24 +249,24 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           }
         }
 
-        if (currentRoom.guestUid !== uid) {
+        if (currentRoom[PRIVATE_ROOM_KEYS.GUEST_UID] !== uid) {
           return undefined;
         }
 
         matchedGuestUid = true;
 
         const nextRoom = {...currentRoom};
-        delete nextRoom.guestUid;
+        delete nextRoom[PRIVATE_ROOM_KEYS.GUEST_UID];
 
         return nextRoom;
       });
       if (!result.committed || !matchedGuestUid) {
         throw new HttpsError("failed-precondition", "Cannot leave this room.");
       }
-    } else if (roomSnapshot.child("guestUid").val() === uid) {
+    } else if (roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST_UID).val() === uid) {
       throw new HttpsError("failed-precondition", "Guest cannot enter as spectator.");
     } else {
-      const spectatorRef = roomRef.child(`spectators/${uid}`);
+      const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
       const spectatorSnapshot = await spectatorRef.get();
 
       if (!spectatorSnapshot.exists()) {
@@ -286,24 +294,24 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
       throw new HttpsError("invalid-argument", "Invalid room ID.");
     }
 
-    const roomRef = db.ref(`privateRooms/${roomId}`);
+    const roomRef = db.ref(DATABASE_PATHS.privateRoom(roomId));
     const roomSnapshot = await roomRef.get();
     if (!roomSnapshot.exists()) {
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child("hostUid").val();
+    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST_UID).val();
     if (hostUid !== uid) {
       throw new HttpsError("permission-denied", "Only host can delete this room.");
     }
 
-    const joinCodeHash = roomSnapshot.child("joinCodeHash").val();
+    const joinCodeHash = roomSnapshot.child(PRIVATE_ROOM_KEYS.JOIN_CODE_HASH).val();
     const updates: Record<string, string | null> = {
-      [`privateRooms/${roomId}/state`]: ROOM_STATES.CLOSED,
+      [DATABASE_PATHS.privateRoomState(roomId)]: ROOM_STATES.CLOSED,
     };
 
     if (typeof joinCodeHash === "string") {
-      updates[`privateRoomJoinCodes/${joinCodeHash}`] = null;
+      updates[DATABASE_PATHS.privateRoomJoinCode(joinCodeHash)] = null;
     }
 
     await db.ref().update(updates);
