@@ -10,7 +10,12 @@
 import {setGlobalOptions} from "firebase-functions";
 
 import {ensureUserProfile, updateUserName} from "./auth/anonymousSignin";
-import {createPrivateRoom, enterPrivateRoom, leavePrivateRoom} from "./roomManaging/privateRoom";
+import {
+  createPrivateRoom,
+  enterPrivateRoom,
+  leavePrivateRoom,
+  deletePrivateRoom,
+} from "./roomManaging/privateRoom";
 
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
@@ -30,4 +35,11 @@ import {createPrivateRoom, enterPrivateRoom, leavePrivateRoom} from "./roomManag
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 
-export {ensureUserProfile, updateUserName, createPrivateRoom, enterPrivateRoom, leavePrivateRoom};
+export {
+  ensureUserProfile,
+  updateUserName,
+  createPrivateRoom,
+  enterPrivateRoom,
+  leavePrivateRoom,
+  deletePrivateRoom,
+};

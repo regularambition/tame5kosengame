@@ -10,6 +10,7 @@ import {
   JOIN_CODE_RULES,
   isValidJoinCode,
   isValidPushId,
+  ROOM_STATES,
 } from "@tame5kosengame/shared";
 import type {
   CreatePrivateRoomRequest,
@@ -18,6 +19,8 @@ import type {
   EnterPrivateRoomResponse,
   LeavePrivateRoomRequest,
   LeavePrivateRoomResponse,
+  DeletePrivateRoomRequest,
+  DeletePrivateRoomResponse,
 } from "@tame5kosengame/shared";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
@@ -102,6 +105,8 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
             matchPoint: parseInt(matchPoint),
             thinkingTimeInSec: parseInt(thinkingTime),
           },
+          joinCodeHash: joinCodeHash,
+          state: ROOM_STATES.PREPARING,
         },
         [`privateRoomJoinCodes/${joinCodeHash}/roomId`]: internalRoomId,
       });
@@ -262,6 +267,46 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
 
       await spectatorRef.remove();
     }
+
+    return {
+      hasSucceeded: true,
+    };
+  },
+);
+
+export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
+  async (request): Promise<DeletePrivateRoomResponse> => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const uid = request.auth.uid;
+    const {roomId} = request.data;
+    if (!isValidPushId(roomId)) {
+      throw new HttpsError("invalid-argument", "Invalid room ID.");
+    }
+
+    const roomRef = db.ref(`privateRooms/${roomId}`);
+    const roomSnapshot = await roomRef.get();
+    if (!roomSnapshot.exists()) {
+      throw new HttpsError("not-found", "Private room not found.");
+    }
+
+    const hostUid = roomSnapshot.child("hostUid").val();
+    if (hostUid !== uid) {
+      throw new HttpsError("permission-denied", "Only host can delete this room.");
+    }
+
+    const joinCodeHash = roomSnapshot.child("joinCodeHash").val();
+    const updates: Record<string, null> = {
+      [`privateRooms/${roomId}`]: null,
+    };
+
+    if (typeof joinCodeHash === "string") {
+      updates[`privateRoomJoinCodes/${joinCodeHash}`] = null;
+    }
+
+    await db.ref().update(updates);
 
     return {
       hasSucceeded: true,

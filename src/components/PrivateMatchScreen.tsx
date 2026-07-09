@@ -12,6 +12,7 @@ import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
 import {createPrivateRoom} from "../api/createPrivateRoom";
 import {enterPrivateRoom} from "../api/enterPrivateRoom";
 import {leavePrivateRoom} from "../api/leavePrivateRoom";
+import {deletePrivateRoom} from "../api/deletePrivateRoom";
 
 import {
   isValidJoinCode,
@@ -30,7 +31,7 @@ const STATES = {
   MAKE_OR_ENTER: 0,
   MATCH_RULES_SETTING: 1,
   WAITING_FOR_GUEST: 2,
-  ENTERING_ROOM_ID: 3,
+  ENTERING_JOIN_CODE: 3,
   WAITING_FOR_HOST_OPERATION: 4,
 } as const;
 
@@ -88,7 +89,7 @@ function MatchRulesSettingDiv({
       <AnnotationText>
         ※部屋が建った後はDiscordやTwitter等を利用して
         <br />
-        対戦相手や観戦者に部屋IDを連携してください
+        対戦相手や観戦者に参加コード（8桁の数字列）を連携してください
       </AnnotationText>
       <p>
         決着点数（{VALID_NUMBER_RANGE.MATCH_POINT.minimum}以上
@@ -117,21 +118,21 @@ function MatchRulesSettingDiv({
 }
 
 type WaitingForGuestDivProps = {
-  roomId: string;
+  joinCode: string;
   matchPoint: string;
   thinkingTime: string;
 };
 
-function WaitingForGuestDiv({roomId, matchPoint, thinkingTime}: WaitingForGuestDivProps) {
+function WaitingForGuestDiv({joinCode, matchPoint, thinkingTime}: WaitingForGuestDivProps) {
   return (
     <Div>
       <p>
-        部屋のID：
+        参加コード：
         <br />
-        {roomId}
+        {joinCode}
       </p>
       <Button onClick={() => {}} type="button">
-        部屋IDをコピー
+        参加コードをコピー
       </Button>
       <p>
         ルール：
@@ -146,7 +147,7 @@ function WaitingForGuestDiv({roomId, matchPoint, thinkingTime}: WaitingForGuestD
   );
 }
 
-type EnteringRoomIdDivProps = {
+type EnteringJoinCodeDivProps = {
   isPlayer: boolean;
   onClickEnter: () => void | Promise<void>;
   onChangeJoinCode: React.ChangeEventHandler<HTMLInputElement>;
@@ -156,7 +157,7 @@ type EnteringRoomIdDivProps = {
   onChangeRightRadio: () => void;
 };
 
-function EnteringRoomIdDiv({
+function EnteringJoinCodeDiv({
   isPlayer,
   onClickEnter,
   onChangeJoinCode,
@@ -164,7 +165,7 @@ function EnteringRoomIdDiv({
   errorMessage,
   onChangeLeftRadio,
   onChangeRightRadio,
-}: EnteringRoomIdDivProps) {
+}: EnteringJoinCodeDivProps) {
   return (
     <Div>
       <p>役割の選択</p>
@@ -178,7 +179,7 @@ function EnteringRoomIdDiv({
           観戦者
         </label>
       </div>
-      <p>入る部屋のIDを入力（8桁の半角数字）</p>
+      <p>入る部屋の参加コードを入力（8桁の半角数字）</p>
       <TextInput onChange={onChangeJoinCode} disabled={isEntering}></TextInput>
       <Button onClick={onClickEnter} type="button" disabled={isEntering}>
         この部屋に入る
@@ -227,9 +228,21 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   const onClickBackArrowButton = async () => {
     if (state === STATES.MAKE_OR_ENTER) {
       onBackToTop();
-    } else if (state === STATES.MATCH_RULES_SETTING || state === STATES.ENTERING_ROOM_ID) {
+    } else if (state === STATES.MATCH_RULES_SETTING || state === STATES.ENTERING_JOIN_CODE) {
       setState(STATES.MAKE_OR_ENTER);
     } else if (state === STATES.WAITING_FOR_GUEST) {
+      if (!isValidPushId(roomId)) {
+        alert("部屋IDに不正な値が入っています");
+        return;
+      }
+
+      try {
+        await deletePrivateRoom(roomId);
+      } catch (error) {
+        console.log(error);
+        alert("部屋の解散に失敗しました");
+        return;
+      }
       setState(STATES.MAKE_OR_ENTER);
     } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
       if (!isValidPushId(roomId)) {
@@ -296,7 +309,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
   const handleEnteringRoom = async () => {
     setIsEntering(true);
     if (!isValidJoinCode(joinCode)) {
-      setErrorMessage("部屋IDの入力に不正な値が渡されています");
+      setErrorMessage("参加コードの入力に不正な値が渡されています");
       setIsEntering(false);
       return;
     }
@@ -325,7 +338,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
       {state === STATES.MAKE_OR_ENTER && (
         <MakeOrEnterDiv
           onClickMake={() => setState(STATES.MATCH_RULES_SETTING)}
-          onClickEnter={() => setState(STATES.ENTERING_ROOM_ID)}
+          onClickEnter={() => setState(STATES.ENTERING_JOIN_CODE)}
         />
       )}
       {state === STATES.MATCH_RULES_SETTING && (
@@ -340,10 +353,14 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
         />
       )}
       {state === STATES.WAITING_FOR_GUEST && (
-        <WaitingForGuestDiv roomId={joinCode} matchPoint={matchPoint} thinkingTime={thinkingTime} />
+        <WaitingForGuestDiv
+          joinCode={joinCode}
+          matchPoint={matchPoint}
+          thinkingTime={thinkingTime}
+        />
       )}
-      {state === STATES.ENTERING_ROOM_ID && (
-        <EnteringRoomIdDiv
+      {state === STATES.ENTERING_JOIN_CODE && (
+        <EnteringJoinCodeDiv
           isPlayer={isPlayer}
           onClickEnter={handleEnteringRoom}
           onChangeJoinCode={handleChangeJoinCode}
@@ -351,7 +368,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
           errorMessage={errorMessage}
           onChangeLeftRadio={() => setIsPlayer(true)}
           onChangeRightRadio={() => setIsPlayer(false)}
-        ></EnteringRoomIdDiv>
+        ></EnteringJoinCodeDiv>
       )}
       {state === STATES.WAITING_FOR_HOST_OPERATION && (
         <WaitingForHostOperationDiv isPlayer={isPlayer}></WaitingForHostOperationDiv>
