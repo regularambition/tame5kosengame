@@ -298,8 +298,8 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
     }
 
     const joinCodeHash = roomSnapshot.child("joinCodeHash").val();
-    const updates: Record<string, null> = {
-      [`privateRooms/${roomId}`]: null,
+    const updates: Record<string, string | null> = {
+      [`privateRooms/${roomId}/state`]: ROOM_STATES.CLOSED,
     };
 
     if (typeof joinCodeHash === "string") {
