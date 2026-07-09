@@ -28,6 +28,7 @@ function generateJoinCode() {
 }
 
 function hashJoinCode(joinCode: string) {
+  // Cloud Functionsの環境変数として設定された値を参照
   const secret = process.env.JOIN_CODE_SECRET;
 
   if (!secret) {
@@ -43,6 +44,10 @@ async function reserveJoinCode(internalRoomId: string) {
     const joinCodeHash = hashJoinCode(joinCode);
     const joinCodeRef = db.ref(`privateRoomJoinCodes/${joinCodeHash}`);
 
+    // transaction処理を導入することにより「nullだから書き込める」
+    // と判断して書き込みを行おうとした時に他のリクエストによる処理が割り込んできて
+    // DBの状態が変わった場合に再試行が走る（DBの状態が再度評価される）
+    // という構造を実現させられるため堅牢な処理を行うことが可能
     const result = await joinCodeRef.transaction((currentData) => {
       if (currentData !== null) {
         // transaction内部でundefinedを返すと中止され
@@ -178,7 +183,7 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
 
-    // const uid = request.auth.uid;
+    const uid = request.auth.uid;
     const {isPlayer, roomId} = request.data;
     console.log(`isPlayer = ${isPlayer}`);
     if (!isValidPushId(roomId)) {
@@ -191,7 +196,44 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    await roomRef.child("guestUid").remove();
+    // transactionの初回処理では引数が強制的にnull扱いされる場合があるため
+    // 本当にnullになっているのか実際はデータが存在するのにnull扱いされているのかを
+    // 区別するために一度きりではなく何度かDBを確認させる必要がある
+    let retryCount = 10;
+    let matchedGuestUid = false;
+    const result = await roomRef.transaction((currentRoom) => {
+      if (currentRoom === null) {
+        if (retryCount > 0) {
+          --retryCount;
+          return currentRoom;
+        } else {
+          return undefined;
+        }
+      }
+
+      if (currentRoom.guestUid === null || currentRoom.guestUid === undefined) {
+        if (retryCount > 0) {
+          --retryCount;
+          return currentRoom;
+        } else {
+          return undefined;
+        }
+      }
+
+      if (currentRoom.guestUid !== uid) {
+        return undefined;
+      }
+
+      matchedGuestUid = true;
+
+      const nextRoom = {...currentRoom};
+      delete nextRoom.guestUid;
+
+      return nextRoom;
+    });
+    if (!result.committed || !matchedGuestUid) {
+      throw new HttpsError("failed-precondition", "Cannot leave this room.");
+    }
 
     return {
       hasSucceeded: true,

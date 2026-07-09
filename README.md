@@ -73,5 +73,8 @@ npm run sync:shared
 
 ### 暗号化処理の際におけるprocess.env.JOIN_CODE_SECRETの値設定(プロジェクトルートで実行)
 
-以下のコマンドを実行すると設定値の入力を求められるため十分な長さを持つランダム文字列を設定する
+以下のコマンドを実行すると設定値の入力を求められるため十分な長さを持つランダム文字列を設定する<br>
 firebase functions:secrets:set JOIN_CODE_SECRET
+
+※設定値を確認したい場合は以下を実行<br>
+firebase functions:secrets:access JOIN_CODE_SECRET
