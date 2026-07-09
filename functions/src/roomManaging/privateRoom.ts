@@ -168,7 +168,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("internal", "Invalid private room data.");
     }
     if (hostUid === uid) {
-      throw new HttpsError("failed-precondition", "Host cannot enter as guest.");
+      throw new HttpsError("failed-precondition", "Host cannot act as guest.");
     }
 
     if (isPlayer) {
@@ -185,12 +185,11 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       }
 
       await roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid).remove();
+    } else if (roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST_UID).val() === uid) {
+      throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
-      const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS);
-
-      await spectatorRef.set({
-        [uid]: true,
-      });
+      const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
+      await spectatorRef.set(true);
     }
 
     return {
@@ -219,6 +218,14 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
     const roomSnapshot = await roomRef.get();
     if (!roomSnapshot.exists()) {
       throw new HttpsError("not-found", "Private room not found.");
+    }
+
+    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST_UID).val();
+    if (typeof hostUid !== "string") {
+      throw new HttpsError("internal", "Invalid private room data.");
+    }
+    if (hostUid === uid) {
+      throw new HttpsError("failed-precondition", "Host cannot act as guest.");
     }
 
     if (isPlayer) {
@@ -262,15 +269,9 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
         throw new HttpsError("failed-precondition", "Cannot leave this room.");
       }
     } else if (roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST_UID).val() === uid) {
-      throw new HttpsError("failed-precondition", "Guest cannot enter as spectator.");
+      throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
       const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
-      const spectatorSnapshot = await spectatorRef.get();
-
-      if (!spectatorSnapshot.exists()) {
-        throw new HttpsError("failed-precondition", "Cannot leave this room.");
-      }
-
       await spectatorRef.remove();
     }
 
