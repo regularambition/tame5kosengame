@@ -127,10 +127,13 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
 
-    const guestUid = request.auth.uid;
-    const {joinCode} = request.data;
+    const uid = request.auth.uid;
+    const {joinCode, isPlayer} = request.data;
     if (!isValidJoinCode(joinCode)) {
       throw new HttpsError("invalid-argument", "Invalid join code.");
+    }
+    if (typeof isPlayer !== "boolean") {
+      throw new HttpsError("invalid-argument", "Invalid request.");
     }
 
     const joinCodeHash = hashJoinCode(joinCode);
@@ -154,20 +157,30 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
     if (typeof hostUid !== "string") {
       throw new HttpsError("internal", "Invalid private room data.");
     }
-    if (hostUid === guestUid) {
+    if (hostUid === uid) {
       throw new HttpsError("failed-precondition", "Host cannot enter as guest.");
     }
 
-    const guestUidRef = roomRef.child("guestUid");
-    const result = await guestUidRef.transaction((currentGuestUid) => {
-      if (currentGuestUid !== null) {
-        return undefined;
+    if (isPlayer) {
+      const guestUidRef = roomRef.child("guestUid");
+      const result = await guestUidRef.transaction((currentGuestUid) => {
+        if (currentGuestUid !== null) {
+          return undefined;
+        }
+
+        return uid;
+      });
+      if (!result.committed) {
+        throw new HttpsError("failed-precondition", "Private room is already occupied.");
       }
 
-      return guestUid;
-    });
-    if (!result.committed) {
-      throw new HttpsError("failed-precondition", "Private room is already occupied.");
+      await roomRef.child(`spectators/${uid}`).remove();
+    } else {
+      const spectatorRef = roomRef.child(`spectators/${uid}`);
+
+      await spectatorRef.set({
+        joinedAt: ServerValue.TIMESTAMP,
+      });
     }
 
     return {
@@ -185,9 +198,11 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
 
     const uid = request.auth.uid;
     const {isPlayer, roomId} = request.data;
-    console.log(`isPlayer = ${isPlayer}`);
     if (!isValidPushId(roomId)) {
       throw new HttpsError("invalid-argument", "Invalid room ID.");
+    }
+    if (typeof isPlayer !== "boolean") {
+      throw new HttpsError("invalid-argument", "Invalid request.");
     }
 
     const roomRef = db.ref(`privateRooms/${roomId}`);
@@ -196,43 +211,56 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    // transactionの初回処理では引数が強制的にnull扱いされる場合があるため
-    // 本当にnullになっているのか実際はデータが存在するのにnull扱いされているのかを
-    // 区別するために一度きりではなく何度かDBを確認させる必要がある
-    let retryCount = 10;
-    let matchedGuestUid = false;
-    const result = await roomRef.transaction((currentRoom) => {
-      if (currentRoom === null) {
-        if (retryCount > 0) {
-          --retryCount;
-          return currentRoom;
-        } else {
+    if (isPlayer) {
+      // transactionの初回処理では引数が強制的にnull扱いされる場合があるため
+      // 本当にnullになっているのか実際はデータが存在するのにnull扱いされているのかを
+      // 区別するために一度きりではなく何度かDBを確認させる必要がある
+      let retryCount = 10;
+      let matchedGuestUid = false;
+      const result = await roomRef.transaction((currentRoom) => {
+        if (currentRoom === null) {
+          if (retryCount > 0) {
+            --retryCount;
+            return currentRoom;
+          } else {
+            return undefined;
+          }
+        }
+
+        if (currentRoom.guestUid === null || currentRoom.guestUid === undefined) {
+          if (retryCount > 0) {
+            --retryCount;
+            return currentRoom;
+          } else {
+            return undefined;
+          }
+        }
+
+        if (currentRoom.guestUid !== uid) {
           return undefined;
         }
+
+        matchedGuestUid = true;
+
+        const nextRoom = {...currentRoom};
+        delete nextRoom.guestUid;
+
+        return nextRoom;
+      });
+      if (!result.committed || !matchedGuestUid) {
+        throw new HttpsError("failed-precondition", "Cannot leave this room.");
+      }
+    } else if (roomSnapshot.child("guestUid").val() === uid) {
+      throw new HttpsError("failed-precondition", "Guest cannot enter as spectator.");
+    } else {
+      const spectatorRef = roomRef.child(`spectators/${uid}`);
+      const spectatorSnapshot = await spectatorRef.get();
+
+      if (!spectatorSnapshot.exists()) {
+        throw new HttpsError("failed-precondition", "Cannot leave this room.");
       }
 
-      if (currentRoom.guestUid === null || currentRoom.guestUid === undefined) {
-        if (retryCount > 0) {
-          --retryCount;
-          return currentRoom;
-        } else {
-          return undefined;
-        }
-      }
-
-      if (currentRoom.guestUid !== uid) {
-        return undefined;
-      }
-
-      matchedGuestUid = true;
-
-      const nextRoom = {...currentRoom};
-      delete nextRoom.guestUid;
-
-      return nextRoom;
-    });
-    if (!result.committed || !matchedGuestUid) {
-      throw new HttpsError("failed-precondition", "Cannot leave this room.");
+      await spectatorRef.remove();
     }
 
     return {

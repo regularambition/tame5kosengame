@@ -1,5 +1,6 @@
 export type EnterPrivateRoomRequest = {
   joinCode: string;
+  isPlayer: boolean;
 };
 
 export type EnterPrivateRoomResponse = {

@@ -302,7 +302,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     }
 
     try {
-      const resp = await enterPrivateRoom(joinCode);
+      const resp = await enterPrivateRoom(joinCode, isPlayer);
       const {roomId, hostUid} = resp.data;
       console.log(`roomId = ${roomId}`);
       console.log(`hostUid = ${hostUid}`);
