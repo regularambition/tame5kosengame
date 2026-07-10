@@ -176,6 +176,25 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("failed-precondition", "Host cannot act as guest.");
     }
 
+    const hostName = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.NAME).val();
+    if (typeof hostName !== "string") {
+      throw new HttpsError("internal", "Invalid private room data.");
+    }
+    const matchPoint = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.RULES)
+      .child(GENERAL_ROOM_KEYS.MATCH_POINT)
+      .val();
+    if (typeof matchPoint !== "number") {
+      throw new HttpsError("internal", "Invalid private room data.");
+    }
+    const thinkingTime = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.RULES)
+      .child(GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC)
+      .val();
+    if (typeof thinkingTime !== "number") {
+      throw new HttpsError("internal", "Invalid private room data.");
+    }
+
     if (isPlayer) {
       const guestUidRef = roomRef.child(PRIVATE_ROOM_KEYS.GUEST);
       const result = await guestUidRef.transaction((currentGuest) => {
@@ -204,7 +223,9 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
 
     return {
       roomId: roomId,
-      hostUid: hostUid,
+      hostName: hostName,
+      matchPoint: matchPoint.toString(),
+      thinkingTime: thinkingTime.toString(),
     };
   },
 );

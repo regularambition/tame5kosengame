@@ -193,21 +193,35 @@ function EnteringJoinCodeDiv({
 
 type WaitingForHostOperationDivProps = {
   isPlayer: boolean;
+  hostName: string;
+  matchPoint: string;
+  thinkingTime: string;
+  onFinishPreparing: () => void;
+  isReadyToFight: boolean;
 };
 
-function WaitingForHostOperationDiv({isPlayer}: WaitingForHostOperationDivProps) {
+function WaitingForHostOperationDiv({
+  isPlayer,
+  hostName,
+  matchPoint,
+  thinkingTime,
+  onFinishPreparing,
+  isReadyToFight,
+}: WaitingForHostOperationDivProps) {
   return (
     <Div>
       <p>
-        ルール：
+        部屋のホスト： {hostName}
         <br />
-        {5}点先取で勝利、選択は{5}秒以内
+        ルール： {matchPoint}点先取で勝利、選択は{thinkingTime}秒以内
       </p>
-      <p>
-        あなたの役割：{isPlayer ? "対戦相手" : "観戦者"}
-        <br />
-        ホストの操作をお待ちください
-      </p>
+      <p>あなたの役割：{isPlayer ? "対戦相手" : "観戦者"}</p>
+      {isPlayer && (
+        <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+          準備完了
+        </Button>
+      )}
+      {!isPlayer && <p>試合開始までお待ち下さい</p>}
     </Div>
   );
 }
@@ -225,6 +239,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
   const [isEntering, setIsEntering] = useState<boolean>(false);
   const [roomId, setRoomId] = useState<string>("");
   const [isBackProcessing, setIsBackProcessing] = useState<boolean>(false);
+  const [opponentOrHostName, setOpponentOrHostName] = useState<string>("");
+  const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
 
   useEffect(() => {
     if (!roomId || state !== STATES.WAITING_FOR_HOST_OPERATION) {
@@ -235,6 +251,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       alert("部屋が削除されました");
       setRoomId("");
       setJoinCode("");
+      setOpponentOrHostName("");
+      setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
     });
 
@@ -263,6 +281,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
         return;
       }
       setRoomId("");
+      setOpponentOrHostName("");
+      setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
     } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
       if (!isValidPushId(roomId)) {
@@ -280,6 +300,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       }
 
       setRoomId("");
+      setOpponentOrHostName("");
+      setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
     }
     setIsBackProcessing(false);
@@ -338,10 +360,13 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
 
     try {
       const resp = await enterPrivateRoom(joinCode, isPlayer, userName);
-      const {roomId, hostUid} = resp.data;
+      const {roomId, hostName, matchPoint, thinkingTime} = resp.data;
       console.log(`roomId = ${roomId}`);
-      console.log(`hostUid = ${hostUid}`);
+      console.log(`hostName = ${hostName}`);
       setRoomId(roomId);
+      setMatchPoint(matchPoint);
+      setThinkingTime(thinkingTime);
+      setOpponentOrHostName(hostName);
     } catch (error) {
       setErrorMessage("部屋が見つかりませんでした");
       setIsEntering(false);
@@ -396,7 +421,14 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
         ></EnteringJoinCodeDiv>
       )}
       {state === STATES.WAITING_FOR_HOST_OPERATION && (
-        <WaitingForHostOperationDiv isPlayer={isPlayer}></WaitingForHostOperationDiv>
+        <WaitingForHostOperationDiv
+          isPlayer={isPlayer}
+          hostName={opponentOrHostName}
+          matchPoint={matchPoint}
+          thinkingTime={thinkingTime}
+          onFinishPreparing={() => setIsReadyToFight(true)}
+          isReadyToFight={isReadyToFight}
+        ></WaitingForHostOperationDiv>
       )}
     </main>
   );

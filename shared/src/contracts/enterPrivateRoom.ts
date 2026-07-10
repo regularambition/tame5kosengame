@@ -6,5 +6,7 @@ export type EnterPrivateRoomRequest = {
 
 export type EnterPrivateRoomResponse = {
   roomId: string;
-  hostUid: string;
+  hostName: string;
+  matchPoint: string;
+  thinkingTime: string;
 };
