@@ -15,6 +15,7 @@ export const PRIVATE_ROOM_KEYS = {
   GUEST: "guest",
   SPECTATORS: "spectators",
   JOIN_CODE_HASH: "joinCodeHash",
+  READY: "ready",
 } as const;
 
 export const PRIVATE_ROOM_JOIN_CODE_KEYS = {

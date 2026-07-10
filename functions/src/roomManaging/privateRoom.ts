@@ -25,6 +25,8 @@ import type {
   LeavePrivateRoomResponse,
   DeletePrivateRoomRequest,
   DeletePrivateRoomResponse,
+  MarkAsReadyRequest,
+  MarkAsReadyResponse,
 } from "@tame5kosengame/shared";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
@@ -107,6 +109,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
           [PRIVATE_ROOM_KEYS.HOST]: {
             [GENERAL_ROOM_KEYS.UID]: hostUid,
             [GENERAL_ROOM_KEYS.NAME]: userName,
+            [PRIVATE_ROOM_KEYS.READY]: false,
           },
           [GENERAL_ROOM_KEYS.CREATED_AT]: ServerValue.TIMESTAMP,
           [GENERAL_ROOM_KEYS.RULES]: {
@@ -205,6 +208,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
         return {
           [GENERAL_ROOM_KEYS.UID]: uid,
           [GENERAL_ROOM_KEYS.NAME]: userName,
+          [PRIVATE_ROOM_KEYS.READY]: false,
         };
       });
       if (!result.committed) {
@@ -291,6 +295,7 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
 
         matchedGuestUid = true;
         const nextRoom = {...currentRoom};
+        nextRoom[PRIVATE_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] = false;
         delete nextRoom[PRIVATE_ROOM_KEYS.GUEST];
         return nextRoom;
       });
@@ -345,6 +350,69 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
     }
 
     await db.ref().update(updates);
+
+    return {
+      hasSucceeded: true,
+    };
+  },
+);
+
+export const markAsReady = onCall<MarkAsReadyRequest>(
+  async (request): Promise<MarkAsReadyResponse> => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const uid = request.auth.uid;
+    const {roomId} = request.data;
+    if (!isValidPushId(roomId)) {
+      throw new HttpsError("invalid-argument", "Invalid room ID.");
+    }
+
+    const roomRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId));
+    const roomSnapshot = await roomRef.get();
+    if (!roomSnapshot.exists()) {
+      throw new HttpsError("not-found", "Private room not found.");
+    }
+
+    let retryCount = 10;
+    let succeeded = false;
+    const result = await roomRef.transaction((room) => {
+      if (room === null) {
+        if (retryCount > 0) {
+          --retryCount;
+          return room;
+        } else {
+          return undefined;
+        }
+      }
+      if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PREPARING) {
+        return undefined;
+      }
+
+      if (room[PRIVATE_ROOM_KEYS.HOST][GENERAL_ROOM_KEYS.UID] === uid) {
+        room[PRIVATE_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] = true;
+        succeeded = true;
+      } else if (room[PRIVATE_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.UID] === uid) {
+        room[PRIVATE_ROOM_KEYS.GUEST][PRIVATE_ROOM_KEYS.READY] = true;
+        succeeded = true;
+      } else {
+        return undefined;
+      }
+
+      if (
+        room[PRIVATE_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] === true &&
+        room[PRIVATE_ROOM_KEYS.GUEST][PRIVATE_ROOM_KEYS.READY] === true
+      ) {
+        room[GENERAL_ROOM_KEYS.STATE] = ROOM_STATES.PLAYING;
+        // room.startedAt = ServerValue.TIMESTAMP;
+      }
+
+      return room;
+    });
+    if (!result.committed || !succeeded) {
+      throw new HttpsError("failed-precondition", "Cannot mark as ready.");
+    }
 
     return {
       hasSucceeded: true,

@@ -12,6 +12,7 @@ export declare const PRIVATE_ROOM_KEYS: {
     readonly GUEST: "guest";
     readonly SPECTATORS: "spectators";
     readonly JOIN_CODE_HASH: "joinCodeHash";
+    readonly READY: "ready";
 };
 export declare const PRIVATE_ROOM_JOIN_CODE_KEYS: {
     readonly ROOM_ID: "roomId";

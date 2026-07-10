@@ -2,15 +2,13 @@ import {onValue, ref} from "firebase/database";
 
 import {database} from "../firebase";
 
-import {DATABASE_PATHS_FOR_ROOMS, ROOM_STATES} from "@tame5kosengame/shared";
+import {DATABASE_PATHS_FOR_ROOMS, RoomState} from "@tame5kosengame/shared";
 
-export function watchPrivateRoomDeleted(roomId: string, onDeleted: () => void) {
+export function watchPrivateRoomState(roomId: string, onChange: (st: RoomState) => void) {
   const stateRef = ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomState(roomId));
 
   return onValue(stateRef, (snapshot) => {
-    if (snapshot.val() === ROOM_STATES.CLOSED) {
-      onDeleted();
-    }
+    onChange(snapshot.val());
   });
 }
 

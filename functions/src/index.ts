@@ -15,6 +15,7 @@ import {
   enterPrivateRoom,
   leavePrivateRoom,
   deletePrivateRoom,
+  markAsReady,
 } from "./roomManaging/privateRoom";
 
 // import { onRequest } from "firebase-functions/https";
@@ -42,4 +43,5 @@ export {
   enterPrivateRoom,
   leavePrivateRoom,
   deletePrivateRoom,
+  markAsReady,
 };
