@@ -4,10 +4,12 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly MATCH_POINT: "matchPoint";
     readonly THINKING_TIME_IN_SEC: "thinkingTimeInSec";
     readonly STATE: "state";
+    readonly UID: "uid";
+    readonly NAME: "name";
 };
 export declare const PRIVATE_ROOM_KEYS: {
-    readonly HOST_UID: "hostUid";
-    readonly GUEST_UID: "guestUid";
+    readonly HOST: "host";
+    readonly GUEST: "guest";
     readonly SPECTATORS: "spectators";
     readonly JOIN_CODE_HASH: "joinCodeHash";
 };

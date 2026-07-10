@@ -85,7 +85,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
     }
 
     const hostUid = request.auth.uid;
-    const {matchPoint, thinkingTime} = request.data;
+    const {matchPoint, thinkingTime, userName} = request.data;
     if (!isValidMatchPoint(matchPoint) || !isValidThinkingTime(thinkingTime)) {
       throw new HttpsError("invalid-argument", "Invalid match rules.");
     }
@@ -104,7 +104,10 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
     try {
       await db.ref().update({
         [DATABASE_PATHS_FOR_ROOMS.privateRoom(internalRoomId)]: {
-          [PRIVATE_ROOM_KEYS.HOST_UID]: hostUid,
+          [PRIVATE_ROOM_KEYS.HOST]: {
+            [GENERAL_ROOM_KEYS.UID]: hostUid,
+            [GENERAL_ROOM_KEYS.NAME]: userName,
+          },
           [GENERAL_ROOM_KEYS.CREATED_AT]: ServerValue.TIMESTAMP,
           [GENERAL_ROOM_KEYS.RULES]: {
             [GENERAL_ROOM_KEYS.MATCH_POINT]: parseInt(matchPoint),
@@ -138,7 +141,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
     }
 
     const uid = request.auth.uid;
-    const {joinCode, isPlayer} = request.data;
+    const {joinCode, isPlayer, userName} = request.data;
     if (!isValidJoinCode(joinCode)) {
       throw new HttpsError("invalid-argument", "Invalid join code.");
     }
@@ -165,7 +168,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST_UID).val();
+    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
     if (typeof hostUid !== "string") {
       throw new HttpsError("internal", "Invalid private room data.");
     }
@@ -174,20 +177,25 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
     }
 
     if (isPlayer) {
-      const guestUidRef = roomRef.child(PRIVATE_ROOM_KEYS.GUEST_UID);
-      const result = await guestUidRef.transaction((currentGuestUid) => {
-        if (currentGuestUid !== null) {
+      const guestUidRef = roomRef.child(PRIVATE_ROOM_KEYS.GUEST);
+      const result = await guestUidRef.transaction((currentGuest) => {
+        if (currentGuest !== null) {
           return undefined;
         }
 
-        return uid;
+        return {
+          [GENERAL_ROOM_KEYS.UID]: uid,
+          [GENERAL_ROOM_KEYS.NAME]: userName,
+        };
       });
       if (!result.committed) {
         throw new HttpsError("failed-precondition", "Private room is already occupied.");
       }
 
       await roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid).remove();
-    } else if (roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST_UID).val() === uid) {
+    } else if (
+      roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
+    ) {
       throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
       const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
@@ -222,7 +230,7 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST_UID).val();
+    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
     if (typeof hostUid !== "string") {
       throw new HttpsError("internal", "Invalid private room data.");
     }
@@ -246,8 +254,8 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           }
         }
 
-        const guestUid = currentRoom[PRIVATE_ROOM_KEYS.GUEST_UID];
-        if (guestUid === null || guestUid === undefined) {
+        const guest = currentRoom[PRIVATE_ROOM_KEYS.GUEST];
+        if (guest === null || guest === undefined) {
           if (retryCount > 0) {
             --retryCount;
             return currentRoom;
@@ -256,21 +264,21 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           }
         }
 
-        if (currentRoom[PRIVATE_ROOM_KEYS.GUEST_UID] !== uid) {
+        if (currentRoom[PRIVATE_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.UID] !== uid) {
           return undefined;
         }
 
         matchedGuestUid = true;
-
         const nextRoom = {...currentRoom};
-        delete nextRoom[PRIVATE_ROOM_KEYS.GUEST_UID];
-
+        delete nextRoom[PRIVATE_ROOM_KEYS.GUEST];
         return nextRoom;
       });
       if (!result.committed || !matchedGuestUid) {
         throw new HttpsError("failed-precondition", "Cannot leave this room.");
       }
-    } else if (roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST_UID).val() === uid) {
+    } else if (
+      roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
+    ) {
       throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
       const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
@@ -301,7 +309,7 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST_UID).val();
+    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
     if (hostUid !== uid) {
       throw new HttpsError("permission-denied", "Only host can delete this room.");
     }

@@ -6,11 +6,13 @@ export const GENERAL_ROOM_KEYS = {
   MATCH_POINT: "matchPoint",
   THINKING_TIME_IN_SEC: "thinkingTimeInSec",
   STATE: "state",
+  UID: "uid",
+  NAME: "name",
 } as const;
 
 export const PRIVATE_ROOM_KEYS = {
-  HOST_UID: "hostUid",
-  GUEST_UID: "guestUid",
+  HOST: "host",
+  GUEST: "guest",
   SPECTATORS: "spectators",
   JOIN_CODE_HASH: "joinCodeHash",
 } as const;
@@ -29,7 +31,7 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.STATE}`,
 
   privateRoomGuestUid: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST_UID}`,
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}`,
 
   privateRoomSpectator: (roomId: string, uid: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}/${uid}`,

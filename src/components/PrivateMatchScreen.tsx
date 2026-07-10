@@ -26,6 +26,7 @@ import {
 type PrivateMatchScreenProps = {
   gameSettings: GameSettings;
   onBackToTop: () => void;
+  userName: string;
 };
 
 const STATES = {
@@ -211,7 +212,7 @@ function WaitingForHostOperationDiv({isPlayer}: WaitingForHostOperationDivProps)
   );
 }
 
-export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScreenProps) {
+export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: PrivateMatchScreenProps) {
   const [state, setState] = useState<StateId>(STATES.MAKE_OR_ENTER);
   const [isPlayer, setIsPlayer] = useState<boolean>(true);
   const [matchPoint, setMatchPoint] = useState<string>(`${DEFAULT_MATCH_RULES.matchPoint}`);
@@ -305,7 +306,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     }
 
     try {
-      const resp = await createPrivateRoom(matchPoint, thinkingTime);
+      const resp = await createPrivateRoom(matchPoint, thinkingTime, userName);
       const {joinCode, roomId} = resp.data;
       setJoinCode(joinCode);
       console.log(`roomId = ${roomId}`);
@@ -336,7 +337,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
     }
 
     try {
-      const resp = await enterPrivateRoom(joinCode, isPlayer);
+      const resp = await enterPrivateRoom(joinCode, isPlayer, userName);
       const {roomId, hostUid} = resp.data;
       console.log(`roomId = ${roomId}`);
       console.log(`hostUid = ${hostUid}`);

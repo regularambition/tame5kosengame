@@ -128,6 +128,7 @@ function App() {
       <PrivateMatchScreen
         gameSettings={gameSettings}
         onBackToTop={() => setScreen(SCREEN_NAMES.TOP)}
+        userName={userName}
       />
     );
   }
