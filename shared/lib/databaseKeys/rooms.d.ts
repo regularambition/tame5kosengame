@@ -15,7 +15,7 @@ export declare const PRIVATE_ROOM_JOIN_CODE_KEYS: {
     readonly ROOM_ID: "roomId";
     readonly CREATED_AT: "createdAt";
 };
-export declare const DATABASE_PATHS: {
+export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoomsRoot: () => "privateRooms";
     readonly privateRoom: (roomId: string) => string;
     readonly privateRoomState: (roomId: string) => string;

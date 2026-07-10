@@ -37,7 +37,7 @@ function App() {
   const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState("");
-  const [isUserNameRegistered, setIsUserNameRegistered] = useState(false);
+  const [userName, setUserName] = useState("");
   const [gameSettings, setGameSettings] = useState<GameSettings>(loadGameSettings());
   useEffect(() => {
     localStorage.setItem(GAME_SETTINGS_STORAGE_KEY, JSON.stringify(gameSettings));
@@ -59,8 +59,8 @@ function App() {
       const userProfile = await ensureUserProfile();
       console.log("ensureUserProfile finished!");
       console.log(userProfile);
-      setScreen(userProfile.data.alreadyRegistered ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
-      setIsUserNameRegistered(userProfile.data.alreadyRegistered);
+      setScreen(userProfile.data.userName.length > 0 ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
+      setUserName(userProfile.data.userName);
     } catch {
       setAuthError("認証に失敗しました。もう一度クリックしてください");
     } finally {
@@ -79,7 +79,7 @@ function App() {
 
     await updateUserName(name);
     console.log("updateUserName finished!");
-    setIsUserNameRegistered(true);
+    setUserName(name);
     setScreen(SCREEN_NAMES.TOP);
   };
 
@@ -88,13 +88,13 @@ function App() {
   }
 
   if (screen === SCREEN_NAMES.USER_NAME) {
-    console.log(`isUserNameRegistered = ${isUserNameRegistered}`);
+    console.log(`userName = ${userName}`);
     return (
       <UserNameScreen
-        isUpdate={isUserNameRegistered}
+        isUpdate={userName.length > 0}
         onSubmit={handleRegisterName}
         onBack={() => {
-          if (isUserNameRegistered) {
+          if (userName.length > 0) {
             setScreen(SCREEN_NAMES.TOP);
           }
         }}

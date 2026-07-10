@@ -16,7 +16,7 @@ export const PRIVATE_ROOM_JOIN_CODE_KEYS = {
     ROOM_ID: "roomId",
     CREATED_AT: "createdAt",
 };
-export const DATABASE_PATHS = {
+export const DATABASE_PATHS_FOR_ROOMS = {
     privateRoomsRoot: () => ROOT_KEYS.PRIVATE_ROOMS,
     privateRoom: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}`,
     privateRoomState: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.STATE}`,
