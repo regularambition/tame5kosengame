@@ -121,8 +121,6 @@ function MatchRulesSettingDiv({
 
 type WaitingForGuestDivProps = {
   joinCode: string;
-  onClickCopy: () => void | Promise<void>;
-  copyAnnotation: string;
   matchPoint: string;
   thinkingTime: string;
   opponentName: string;
@@ -132,14 +130,26 @@ type WaitingForGuestDivProps = {
 
 function WaitingForGuestDiv({
   joinCode,
-  onClickCopy,
-  copyAnnotation,
   matchPoint,
   thinkingTime,
   opponentName,
   onFinishPreparing,
   isReadyToFight,
 }: WaitingForGuestDivProps) {
+  const [copyAnnotation, setCopyAnnotation] = useState<string>("");
+
+  const handleCopy = async () => {
+    let failed = false;
+    try {
+      await navigator.clipboard.writeText(joinCode);
+    } catch (error) {
+      failed = true;
+    }
+
+    setCopyAnnotation(failed ? "コピーに失敗しました" : "コピー成功");
+    setTimeout(() => setCopyAnnotation(""), 2000); // 2秒後に戻す
+  };
+
   return (
     <Div>
       <p>
@@ -147,7 +157,7 @@ function WaitingForGuestDiv({
         <br />
         <span>{joinCode}</span>
       </p>
-      <Button onClick={onClickCopy} type="button" disabled={copyAnnotation.length > 0}>
+      <Button onClick={handleCopy} type="button" disabled={copyAnnotation.length > 0}>
         参加コードをコピー
       </Button>
       {copyAnnotation.length > 0 && <AnnotationText>{copyAnnotation}</AnnotationText>}
@@ -406,18 +416,6 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
     setIsEntering(false);
   };
 
-  const handleCopy = async () => {
-    let failed = false;
-    try {
-      await navigator.clipboard.writeText(joinCode);
-    } catch (error) {
-      failed = true;
-    }
-
-    setCopyAnnotation(failed ? "コピーに失敗しました" : "コピー成功");
-    setTimeout(() => setCopyAnnotation(""), 2000); // 2秒後に戻す
-  };
-
   return (
     <main className="screen not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.PRIVATE_MATCH} />
@@ -445,8 +443,6 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       {state === STATES.WAITING_FOR_GUEST && (
         <WaitingForGuestDiv
           joinCode={joinCode}
-          onClickCopy={handleCopy}
-          copyAnnotation={copyAnnotation}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}
           opponentName={opponentOrHostName}
