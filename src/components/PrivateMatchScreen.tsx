@@ -13,7 +13,7 @@ import {createPrivateRoom} from "../api/createPrivateRoom";
 import {enterPrivateRoom} from "../api/enterPrivateRoom";
 import {leavePrivateRoom} from "../api/leavePrivateRoom";
 import {deletePrivateRoom} from "../api/deletePrivateRoom";
-import {watchPrivateRoomDeleted} from "../api/watchPrivateRoom";
+import {watchPrivateRoomDeleted, watchGuestName} from "../api/watchPrivateRoom";
 
 import {
   isValidJoinCode,
@@ -121,30 +121,50 @@ function MatchRulesSettingDiv({
 
 type WaitingForGuestDivProps = {
   joinCode: string;
+  onClickCopy: () => void | Promise<void>;
+  copyAnnotation: string;
   matchPoint: string;
   thinkingTime: string;
+  opponentName: string;
+  onFinishPreparing: () => void;
+  isReadyToFight: boolean;
 };
 
-function WaitingForGuestDiv({joinCode, matchPoint, thinkingTime}: WaitingForGuestDivProps) {
+function WaitingForGuestDiv({
+  joinCode,
+  onClickCopy,
+  copyAnnotation,
+  matchPoint,
+  thinkingTime,
+  opponentName,
+  onFinishPreparing,
+  isReadyToFight,
+}: WaitingForGuestDivProps) {
   return (
     <Div>
       <p>
         参加コード：
         <br />
-        {joinCode}
+        <span>{joinCode}</span>
       </p>
-      <Button onClick={() => {}} type="button">
+      <Button onClick={onClickCopy} type="button" disabled={copyAnnotation.length > 0}>
         参加コードをコピー
       </Button>
+      {copyAnnotation.length > 0 && <AnnotationText>{copyAnnotation}</AnnotationText>}
       <p>
         ルール：
         <br />
         {matchPoint}点先取で勝利、選択は{thinkingTime}秒以内
       </p>
-      <p>相手の名前：taisennaitenonamae</p>
-      <Button onClick={() => {}} type="button">
-        試合開始
-      </Button>
+      {opponentName.length === 0 && <AnnotationText>まだ相手がいません</AnnotationText>}
+      {opponentName.length > 0 && (
+        <div>
+          <p>相手の名前：{opponentName}</p>
+          <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+            準備完了
+          </Button>
+        </div>
+      )}
     </Div>
   );
 }
@@ -241,22 +261,30 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
   const [isBackProcessing, setIsBackProcessing] = useState<boolean>(false);
   const [opponentOrHostName, setOpponentOrHostName] = useState<string>("");
   const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
+  const [copyAnnotation, setCopyAnnotation] = useState<string>("");
 
   useEffect(() => {
-    if (!roomId || state !== STATES.WAITING_FOR_HOST_OPERATION) {
+    if (state === STATES.WAITING_FOR_GUEST) {
+      const unsubscribe = watchGuestName(roomId, (s: string) => {
+        setOpponentOrHostName(s ?? "");
+        setIsReadyToFight(false);
+      });
+
+      return unsubscribe;
+    } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
+      const unsubscribe = watchPrivateRoomDeleted(roomId, () => {
+        alert("部屋が削除されました");
+        setRoomId("");
+        setJoinCode("");
+        setOpponentOrHostName("");
+        setIsReadyToFight(false);
+        setState(STATES.MAKE_OR_ENTER);
+      });
+
+      return unsubscribe;
+    } else {
       return;
     }
-
-    const unsubscribe = watchPrivateRoomDeleted(roomId, () => {
-      alert("部屋が削除されました");
-      setRoomId("");
-      setJoinCode("");
-      setOpponentOrHostName("");
-      setIsReadyToFight(false);
-      setState(STATES.MAKE_OR_ENTER);
-    });
-
-    return unsubscribe;
   }, [roomId, state]);
 
   const onClickBackArrowButton = async () => {
@@ -378,12 +406,24 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
     setIsEntering(false);
   };
 
+  const handleCopy = async () => {
+    let failed = false;
+    try {
+      await navigator.clipboard.writeText(joinCode);
+    } catch (error) {
+      failed = true;
+    }
+
+    setCopyAnnotation(failed ? "コピーに失敗しました" : "コピー成功");
+    setTimeout(() => setCopyAnnotation(""), 2000); // 2秒後に戻す
+  };
+
   return (
     <main className="screen not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.PRIVATE_MATCH} />
       <BackArrowButton
         onClick={onClickBackArrowButton}
-        disabled={isBackProcessing || isCreatingRoom || isEntering}
+        disabled={isBackProcessing || isCreatingRoom || isEntering || isReadyToFight}
       />
       {state === STATES.MAKE_OR_ENTER && (
         <MakeOrEnterDiv
@@ -405,8 +445,13 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       {state === STATES.WAITING_FOR_GUEST && (
         <WaitingForGuestDiv
           joinCode={joinCode}
+          onClickCopy={handleCopy}
+          copyAnnotation={copyAnnotation}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}
+          opponentName={opponentOrHostName}
+          onFinishPreparing={() => setIsReadyToFight(true)}
+          isReadyToFight={isReadyToFight}
         />
       )}
       {state === STATES.ENTERING_JOIN_CODE && (

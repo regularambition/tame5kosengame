@@ -21,7 +21,7 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoomsRoot: () => "privateRooms";
     readonly privateRoom: (roomId: string) => string;
     readonly privateRoomState: (roomId: string) => string;
-    readonly privateRoomGuestUid: (roomId: string) => string;
+    readonly privateRoomGuestName: (roomId: string) => string;
     readonly privateRoomSpectator: (roomId: string, uid: string) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;

@@ -2,14 +2,22 @@ import {onValue, ref} from "firebase/database";
 
 import {database} from "../firebase";
 
-import {DATABASE_PATHS_FOR_ROOMS, GENERAL_ROOM_KEYS, ROOM_STATES} from "@tame5kosengame/shared";
+import {DATABASE_PATHS_FOR_ROOMS, ROOM_STATES} from "@tame5kosengame/shared";
 
 export function watchPrivateRoomDeleted(roomId: string, onDeleted: () => void) {
-  const roomRef = ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId));
+  const stateRef = ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomState(roomId));
 
-  return onValue(roomRef, (snapshot) => {
-    if (snapshot.child(GENERAL_ROOM_KEYS.STATE).val() === ROOM_STATES.CLOSED) {
+  return onValue(stateRef, (snapshot) => {
+    if (snapshot.val() === ROOM_STATES.CLOSED) {
       onDeleted();
     }
+  });
+}
+
+export function watchGuestName(roomId: string, onChange: (s: string) => void) {
+  const guestNameRef = ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomGuestName(roomId));
+
+  return onValue(guestNameRef, (snapshot) => {
+    onChange(snapshot.val());
   });
 }

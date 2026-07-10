@@ -30,8 +30,8 @@ export const DATABASE_PATHS_FOR_ROOMS = {
   privateRoomState: (roomId: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.STATE}`,
 
-  privateRoomGuestUid: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}`,
+  privateRoomGuestName: (roomId: string) =>
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
 
   privateRoomSpectator: (roomId: string, uid: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}/${uid}`,
