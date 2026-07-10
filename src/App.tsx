@@ -88,7 +88,6 @@ function App() {
   }
 
   if (screen === SCREEN_NAMES.USER_NAME) {
-    console.log(`userName = ${userName}`);
     return (
       <UserNameScreen
         isUpdate={userName.length > 0}
@@ -141,6 +140,7 @@ function App() {
       onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
       onUserNameClick={() => setScreen(SCREEN_NAMES.USER_NAME)}
       onCreditClick={() => setScreen(SCREEN_NAMES.CREDITS)}
+      userName={userName}
     />
   );
 }
