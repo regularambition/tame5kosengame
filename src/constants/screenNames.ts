@@ -7,6 +7,7 @@ export const SCREEN_NAMES = {
   CREDITS: "クレジット" as const,
   RANDOM_MATCH: "ランダムマッチ" as const,
   PRIVATE_MATCH: "プライベートマッチ" as const,
+  IN_BATTLE: "対戦中" as const,
 } as const;
 
 export type Screen = (typeof SCREEN_NAMES)[keyof typeof SCREEN_NAMES];

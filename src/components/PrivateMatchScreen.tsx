@@ -26,10 +26,13 @@ import {
   ROOM_STATES,
 } from "@tame5kosengame/shared";
 
+import {MatchInfo} from "../App";
+
 type PrivateMatchScreenProps = {
   gameSettings: GameSettings;
   onBackToTop: () => void;
   userName: string;
+  onUpdatingMatchInfo: (matchInfo: MatchInfo) => void;
 };
 
 const STATES = {
@@ -230,6 +233,7 @@ function EnteringJoinCodeDiv({
 type WaitingForHostOperationDivProps = {
   isPlayer: boolean;
   hostName: string;
+  guestName?: string;
   matchPoint: string;
   thinkingTime: string;
   onFinishPreparing: () => void | Promise<void>;
@@ -240,6 +244,7 @@ type WaitingForHostOperationDivProps = {
 function WaitingForHostOperationDiv({
   isPlayer,
   hostName,
+  guestName = "",
   matchPoint,
   thinkingTime,
   onFinishPreparing,
@@ -260,12 +265,23 @@ function WaitingForHostOperationDiv({
         </Button>
       )}
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
-      {!isPlayer && <p>試合開始までお待ち下さい</p>}
+      {!isPlayer && (
+        <p>
+          ホストの対戦相手：{guestName}
+          <br />
+          試合開始までお待ち下さい
+        </p>
+      )}
     </Div>
   );
 }
 
-export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: PrivateMatchScreenProps) {
+export function PrivateMatchScreen({
+  gameSettings,
+  onBackToTop,
+  userName,
+  onUpdatingMatchInfo,
+}: PrivateMatchScreenProps) {
   const [state, setState] = useState<StateId>(STATES.MAKE_OR_ENTER);
   const [isPlayer, setIsPlayer] = useState<boolean>(true);
   const [matchPoint, setMatchPoint] = useState<string>(`${DEFAULT_MATCH_RULES.matchPoint}`);
@@ -278,8 +294,34 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
   const [isEntering, setIsEntering] = useState<boolean>(false);
   const [roomId, setRoomId] = useState<string>("");
   const [isBackProcessing, setIsBackProcessing] = useState<boolean>(false);
-  const [opponentOrHostName, setOpponentOrHostName] = useState<string>("");
+  const [hostName, setHostName] = useState<string>("");
+  const [guestName, setGuestName] = useState<string>("");
   const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
+
+  function buildMatchInfo(): MatchInfo {
+    let p1Name = "";
+    let p2Name = "";
+    if (state === STATES.I_AM_HOST) {
+      p1Name = userName;
+      p2Name = guestName;
+    } else if (isPlayer) {
+      p1Name = userName;
+      p2Name = hostName;
+    } else {
+      p1Name = hostName;
+      p2Name = guestName;
+    }
+
+    return {
+      roomId: roomId,
+      isPrivateMatch: true,
+      isPlayer: isPlayer,
+      player1Name: p1Name,
+      player2Name: p2Name,
+      matchPoint: parseInt(matchPoint),
+      thinkingTimeInSec: parseInt(thinkingTime),
+    };
+  }
 
   useEffect(() => {
     const watchPrivateRoomStateArg = (st: RoomState) => {
@@ -287,17 +329,18 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
         alert("部屋が削除されました");
         setRoomId("");
         setJoinCode("");
-        setOpponentOrHostName("");
+        setGuestName("");
         setIsReadyToFight(false);
         setState(STATES.MAKE_OR_ENTER);
       } else if (st === ROOM_STATES.PLAYING) {
+        onUpdatingMatchInfo(buildMatchInfo());
         alert("ゲームが始まります！");
       }
     };
 
     if (state === STATES.I_AM_HOST) {
       const unsubscribeGuestName = watchGuestName(roomId, (s: string) => {
-        setOpponentOrHostName(s ?? "");
+        setGuestName(s ?? "");
         setIsReadyToFight(false);
       });
 
@@ -307,8 +350,20 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
         unsubscribeState();
       };
     } else if (state === STATES.I_AM_GUEST_OR_SPECTATOR) {
-      const unsubscribe = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
-      return unsubscribe;
+      if (isPlayer) {
+        const unsubscribe = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+        return unsubscribe;
+      } else {
+        const unsubscribeGuestName = watchGuestName(roomId, (s: string) => {
+          setGuestName(s ?? "");
+        });
+
+        const unsubscribeState = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+        return () => {
+          unsubscribeGuestName();
+          unsubscribeState();
+        };
+      }
     } else {
       return;
     }
@@ -336,7 +391,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
         return;
       }
       setRoomId("");
-      setOpponentOrHostName("");
+      setGuestName("");
       setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
     } else if (state === STATES.I_AM_GUEST_OR_SPECTATOR) {
@@ -355,7 +410,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       }
 
       setRoomId("");
-      setOpponentOrHostName("");
+      setHostName("");
       setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
     }
@@ -421,7 +476,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       setRoomId(roomId);
       setMatchPoint(matchPoint);
       setThinkingTime(thinkingTime);
-      setOpponentOrHostName(hostName);
+      setHostName(hostName);
     } catch (error) {
       setErrorMessage("部屋が見つかりませんでした");
       setIsEntering(false);
@@ -447,6 +502,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       setIsReadyToFight(false);
       setErrorMessage("準備完了通知に失敗しました");
     }
+
+    onUpdatingMatchInfo(buildMatchInfo());
   };
 
   return (
@@ -478,7 +535,7 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
           joinCode={joinCode}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}
-          opponentName={opponentOrHostName}
+          opponentName={guestName}
           onFinishPreparing={handleFinishPreparing}
           isReadyToFight={isReadyToFight}
           errorMessage={errorMessage}
@@ -498,7 +555,8 @@ export function PrivateMatchScreen({gameSettings, onBackToTop, userName}: Privat
       {state === STATES.I_AM_GUEST_OR_SPECTATOR && (
         <WaitingForHostOperationDiv
           isPlayer={isPlayer}
-          hostName={opponentOrHostName}
+          hostName={hostName}
+          guestName={guestName}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}
           onFinishPreparing={handleFinishPreparing}

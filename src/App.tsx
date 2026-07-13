@@ -15,6 +15,7 @@ import {SCREEN_NAMES, Screen} from "./constants/screenNames";
 import {RandomMatchScreen} from "./components/RandomMatchScreen";
 import {PrivateMatchScreen} from "./components/PrivateMatchScreen";
 import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
+import {DEFAULT_MATCH_RULES} from "./types/MatchRules";
 
 function loadGameSettings(): GameSettings {
   const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
@@ -33,6 +34,16 @@ function loadGameSettings(): GameSettings {
   }
 }
 
+export type MatchInfo = {
+  roomId: string;
+  isPrivateMatch: boolean;
+  isPlayer: boolean;
+  player1Name: string;
+  player2Name: string;
+  matchPoint: number;
+  thinkingTimeInSec: number;
+};
+
 function App() {
   const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -42,6 +53,16 @@ function App() {
   useEffect(() => {
     localStorage.setItem(GAME_SETTINGS_STORAGE_KEY, JSON.stringify(gameSettings));
   }, [gameSettings]);
+
+  const [matchInfo, setMatchInfo] = useState<MatchInfo>({
+    roomId: "",
+    isPrivateMatch: false,
+    isPlayer: true,
+    player1Name: userName,
+    player2Name: "",
+    matchPoint: DEFAULT_MATCH_RULES.matchPoint,
+    thinkingTimeInSec: DEFAULT_MATCH_RULES.thinkingTimeInSec,
+  });
 
   const handleStart = async () => {
     if (isAuthenticating) {
@@ -129,6 +150,26 @@ function App() {
         gameSettings={gameSettings}
         onBackToTop={() => setScreen(SCREEN_NAMES.TOP)}
         userName={userName}
+        onUpdatingMatchInfo={(matchInfoArg: MatchInfo) => {
+          setMatchInfo(matchInfoArg);
+          const {
+            roomId,
+            isPrivateMatch,
+            isPlayer,
+            player1Name,
+            player2Name,
+            matchPoint,
+            thinkingTimeInSec,
+          } = matchInfo;
+          console.log(`contents of matchInfo:`);
+          console.log(`roomId = ${roomId}`);
+          console.log(`isPrivateMatch = ${isPrivateMatch}`);
+          console.log(`isPlayer = ${isPlayer}`);
+          console.log(`player1Name = ${player1Name}`);
+          console.log(`player2Name = ${player2Name}`);
+          console.log(`matchPoint = ${matchPoint}`);
+          console.log(`thinkingTimeInSec = ${thinkingTimeInSec}`);
+        }}
       />
     );
   }
