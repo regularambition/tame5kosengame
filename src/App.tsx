@@ -16,6 +16,7 @@ import {RandomMatchScreen} from "./components/RandomMatchScreen";
 import {PrivateMatchScreen} from "./components/PrivateMatchScreen";
 import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
 import {DEFAULT_MATCH_RULES} from "./types/MatchRules";
+import {InBattleScreen} from "./components/InBattleScreen";
 
 function loadGameSettings(): GameSettings {
   const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
@@ -150,28 +151,16 @@ function App() {
         gameSettings={gameSettings}
         onBackToTop={() => setScreen(SCREEN_NAMES.TOP)}
         userName={userName}
-        onUpdatingMatchInfo={(matchInfoArg: MatchInfo) => {
-          setMatchInfo(matchInfoArg);
-          const {
-            roomId,
-            isPrivateMatch,
-            isPlayer,
-            player1Name,
-            player2Name,
-            matchPoint,
-            thinkingTimeInSec,
-          } = matchInfo;
-          console.log(`contents of matchInfo:`);
-          console.log(`roomId = ${roomId}`);
-          console.log(`isPrivateMatch = ${isPrivateMatch}`);
-          console.log(`isPlayer = ${isPlayer}`);
-          console.log(`player1Name = ${player1Name}`);
-          console.log(`player2Name = ${player2Name}`);
-          console.log(`matchPoint = ${matchPoint}`);
-          console.log(`thinkingTimeInSec = ${thinkingTimeInSec}`);
+        onStartBattle={(nextMatchInfo: MatchInfo) => {
+          setMatchInfo(nextMatchInfo);
+          setScreen(SCREEN_NAMES.IN_BATTLE);
         }}
       />
     );
+  }
+
+  if (screen === SCREEN_NAMES.IN_BATTLE) {
+    return <InBattleScreen matchInfo={matchInfo}></InBattleScreen>;
   }
 
   return (

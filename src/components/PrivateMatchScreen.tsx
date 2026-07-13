@@ -32,7 +32,7 @@ type PrivateMatchScreenProps = {
   gameSettings: GameSettings;
   onBackToTop: () => void;
   userName: string;
-  onUpdatingMatchInfo: (matchInfo: MatchInfo) => void;
+  onStartBattle: (nextMatchInfo: MatchInfo) => void;
 };
 
 const STATES = {
@@ -280,7 +280,7 @@ export function PrivateMatchScreen({
   gameSettings,
   onBackToTop,
   userName,
-  onUpdatingMatchInfo,
+  onStartBattle,
 }: PrivateMatchScreenProps) {
   const [state, setState] = useState<StateId>(STATES.MAKE_OR_ENTER);
   const [isPlayer, setIsPlayer] = useState<boolean>(true);
@@ -332,9 +332,6 @@ export function PrivateMatchScreen({
         setGuestName("");
         setIsReadyToFight(false);
         setState(STATES.MAKE_OR_ENTER);
-      } else if (st === ROOM_STATES.PLAYING) {
-        onUpdatingMatchInfo(buildMatchInfo());
-        alert("ゲームが始まります！");
       }
     };
 
@@ -368,6 +365,22 @@ export function PrivateMatchScreen({
       return;
     }
   }, [roomId, state]);
+
+  useEffect(() => {
+    if (state !== STATES.I_AM_HOST && state !== STATES.I_AM_GUEST_OR_SPECTATOR) {
+      return;
+    }
+
+    const watchPrivateRoomStateArg = (st: RoomState) => {
+      if (st === ROOM_STATES.PLAYING) {
+        // alert("ゲームが始まります！");
+        onStartBattle(buildMatchInfo());
+      }
+    };
+
+    const unsubscribe = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+    return unsubscribe;
+  }, [roomId, state, isPlayer, userName, hostName, guestName, matchPoint, thinkingTime]);
 
   const onClickBackArrowButton = async () => {
     setIsBackProcessing(true);
@@ -502,8 +515,6 @@ export function PrivateMatchScreen({
       setIsReadyToFight(false);
       setErrorMessage("準備完了通知に失敗しました");
     }
-
-    onUpdatingMatchInfo(buildMatchInfo());
   };
 
   return (
