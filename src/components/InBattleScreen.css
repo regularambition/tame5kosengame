@@ -32,3 +32,18 @@ table {
   height: 72px;
   width: 72px;
 }
+
+.card-container {
+  display: flex;
+  justify-content: space-between; /* または space-evenly が特におすすめ */
+  align-items: center;
+  gap: 20px; /* カード間の間隔（好みで調整） */
+  width: 100%; /* 親要素いっぱいに広げる */
+  max-width: 800px; /* 必要に応じて最大幅を制限 */
+}
+
+.card-button {
+  height: 128px;
+  width: 128px;
+  background-image: radial-gradient(circle, #bcb4b4, #4ab207);
+}

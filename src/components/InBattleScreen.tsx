@@ -4,20 +4,7 @@ import spectatorIcon from "../assets/ui/spectatorCount.png";
 import {useState, useEffect, ReactNode} from "react";
 
 import {Button} from "./ui/Button";
-import {ButtonRow} from "./ui/ButtonRow";
-import {BackArrowButton} from "./ui/BackArrowButton";
-import {ScreenBanner} from "./ui/ScreenBanner";
-import {SCREEN_NAMES} from "../constants/screenNames";
-import {GameSettings} from "../types/GameSettings";
-import {AnnotationText} from "./ui/AnnotationText";
-import {TextInput} from "./ui/TextInput";
-import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
-import {createPrivateRoom} from "../api/createPrivateRoom";
-import {enterPrivateRoom} from "../api/enterPrivateRoom";
-import {leavePrivateRoom} from "../api/leavePrivateRoom";
-import {deletePrivateRoom} from "../api/deletePrivateRoom";
-import {watchPrivateRoomState, watchGuestName} from "../api/watchPrivateRoom";
-import {markAsReady} from "../api/markAsReady";
+import {HANDS} from "../constants/hands";
 
 import {
   isValidJoinCode,
@@ -34,6 +21,7 @@ import {
 import {MatchInfo} from "../App";
 import {CenterAligningDiv} from "./ui/CenterAligningDiv";
 import {ResignButton} from "./ui/ResignButton";
+import {IconButton} from "./ui/IconButton";
 
 type MainDivProps = {
   children: ReactNode;
@@ -101,6 +89,46 @@ function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
   );
 }
 
+type SelectingPhaseDivProps = {matchInfo: MatchInfo};
+function SelectingPhaseDiv({matchInfo}: SelectingPhaseDivProps) {
+  const {matchPoint, thinkingTimeInSec} = matchInfo;
+  return (
+    <MainDiv>
+      <div className="card-container">
+        <IconButton
+          className="card-button"
+          iconSrc={HANDS.CHARGE.imageSrc}
+          label={HANDS.CHARGE.label}
+          // onClick={onClick}
+          // disabled={disabled}
+        />
+        <IconButton
+          className="card-button"
+          iconSrc={HANDS.DEFENSE.imageSrc}
+          label={HANDS.DEFENSE.label}
+          // onClick={onClick}
+          // disabled={disabled}
+        />
+        <IconButton
+          className="card-button"
+          iconSrc={HANDS.ATTACK.imageSrc}
+          label={HANDS.ATTACK.label}
+          // onClick={onClick}
+          // disabled={disabled}
+        />
+        <IconButton
+          className="card-button"
+          iconSrc={HANDS.BEAM.imageSrc}
+          label={HANDS.BEAM.label}
+          // onClick={onClick}
+          // disabled={disabled}
+        />
+      </div>
+      <Button>確定</Button>
+    </MainDiv>
+  );
+}
+
 type InBattleScreenProps = {
   matchInfo: MatchInfo;
 };
@@ -131,12 +159,27 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
 
   const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
 
+  function updateGamePhase() {
+    if (gamePhase === GAME_PHASES.INTRO) {
+      setGamePhase(GAME_PHASES.SELECTING);
+    } else if (gamePhase === GAME_PHASES.SELECTING) {
+      setGamePhase(GAME_PHASES.RESOLVED);
+    } else if (gamePhase === GAME_PHASES.RESOLVED) {
+      setGamePhase(GAME_PHASES.FINISHED);
+    } else {
+      setGamePhase(GAME_PHASES.INTRO);
+    }
+  }
+
   return (
     <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
       {matchInfo.isPrivateMatch && <SpectatorUiDiv></SpectatorUiDiv>}
-      <ResignButton onClick={() => {}}></ResignButton>
+      <ResignButton onClick={updateGamePhase}></ResignButton>
       <PlayerStatusDiv userName={matchInfo.player2Name} className="panel-p2"></PlayerStatusDiv>
       {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo}></IntroPhaseDiv>}
+      {gamePhase === GAME_PHASES.SELECTING && (
+        <SelectingPhaseDiv matchInfo={matchInfo}></SelectingPhaseDiv>
+      )}
       <PlayerStatusDiv
         userName={matchInfo.player1Name}
         className="panel-p1"
