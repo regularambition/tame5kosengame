@@ -8,6 +8,8 @@ export const GENERAL_ROOM_KEYS = {
   STATE: "state",
   UID: "uid",
   NAME: "name",
+  SCORE: "score",
+  MANA: "mana",
 } as const;
 
 export const PRIVATE_ROOM_KEYS = {
@@ -33,6 +35,12 @@ export const DATABASE_PATHS_FOR_ROOMS = {
 
   privateRoomGuestName: (roomId: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
+
+  privateRoomGuestScore: (roomId: string) =>
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
+
+  privateRoomHostScore: (roomId: string) =>
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
 
   privateRoomSpectator: (roomId: string, uid: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}/${uid}`,

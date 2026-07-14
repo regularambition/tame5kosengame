@@ -5,3 +5,4 @@ export * from "./enterPrivateRoom.js";
 export * from "./leavePrivateRoom.js";
 export * from "./deletePrivateRoom.js";
 export * from "./markAsReady.js";
+export * from "./initializeAfterIntro.js";

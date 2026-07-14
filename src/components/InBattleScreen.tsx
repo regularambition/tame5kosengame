@@ -23,6 +23,8 @@ import {CenterAligningDiv} from "./ui/CenterAligningDiv";
 import {ResignButton} from "./ui/ResignButton";
 import {IconButton} from "./ui/IconButton";
 import {ButtonRow} from "./ui/ButtonRow";
+import {initializeAfterIntro} from "../api/inBattle/initializeAfterIntro";
+import {watchOpponentFinishedIntro} from "../api/watchPrivateRoom";
 
 type MainDivProps = {
   children: ReactNode;
@@ -119,6 +121,7 @@ function SelectingPhaseDiv({matchInfo}: SelectingPhaseDivProps) {
   const {matchPoint, thinkingTimeInSec} = matchInfo;
   return (
     <MainDiv>
+      <p>残り5秒</p>
       <div className="card-container">
         <CardButton src={HANDS.CHARGE.imageSrc} label={HANDS.CHARGE.label} />
         <CardButton src={HANDS.DEFENSE.imageSrc} label={HANDS.DEFENSE.label} />
@@ -179,11 +182,15 @@ type InBattleScreenProps = {
   matchInfo: MatchInfo;
 };
 export function InBattleScreen({matchInfo}: InBattleScreenProps) {
+  const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
+  const [hasInitialized, setHasInitialized] = useState<boolean>(false);
+
   function debug() {
     const {
       roomId,
       isPrivateMatch,
       isPlayer,
+      iAmHost,
       player1Name,
       player2Name,
       matchPoint,
@@ -193,6 +200,7 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
     console.log(`roomId = ${roomId}`);
     console.log(`isPrivateMatch = ${isPrivateMatch}`);
     console.log(`isPlayer = ${isPlayer}`);
+    console.log(`iAmHost = ${iAmHost}`);
     console.log(`player1Name = ${player1Name}`);
     console.log(`player2Name = ${player2Name}`);
     console.log(`matchPoint = ${matchPoint}`);
@@ -201,9 +209,32 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
 
   useEffect(() => {
     debug();
-  }, [matchInfo]);
 
-  const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
+    const timerId = window.setTimeout(async () => {
+      try {
+        await initializeAfterIntro(matchInfo.roomId);
+      } catch (error) {
+        console.log("初期化失敗");
+        return;
+      }
+      setHasInitialized(true);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (gamePhase !== GAME_PHASES.INTRO || !hasInitialized) {
+      return;
+    }
+
+    const unsubscribe = watchOpponentFinishedIntro(matchInfo.roomId, matchInfo.iAmHost, () =>
+      setGamePhase(GAME_PHASES.SELECTING),
+    );
+    return unsubscribe;
+  }, [gamePhase, hasInitialized]);
 
   function updateGamePhase() {
     if (gamePhase === GAME_PHASES.INTRO) {

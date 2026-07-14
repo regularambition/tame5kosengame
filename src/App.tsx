@@ -39,6 +39,7 @@ export type MatchInfo = {
   roomId: string;
   isPrivateMatch: boolean;
   isPlayer: boolean;
+  iAmHost: boolean;
   player1Name: string;
   player2Name: string;
   matchPoint: number;
@@ -59,6 +60,7 @@ function App() {
     roomId: "",
     isPrivateMatch: false,
     isPlayer: true,
+    iAmHost: false,
     player1Name: userName,
     player2Name: "",
     matchPoint: DEFAULT_MATCH_RULES.matchPoint,

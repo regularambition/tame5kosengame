@@ -301,9 +301,11 @@ export function PrivateMatchScreen({
   function buildMatchInfo(): MatchInfo {
     let p1Name = "";
     let p2Name = "";
+    let isHost = false;
     if (state === STATES.I_AM_HOST) {
       p1Name = userName;
       p2Name = guestName;
+      isHost = true;
     } else if (isPlayer) {
       p1Name = userName;
       p2Name = hostName;
@@ -316,6 +318,7 @@ export function PrivateMatchScreen({
       roomId: roomId,
       isPrivateMatch: true,
       isPlayer: isPlayer,
+      iAmHost: isHost,
       player1Name: p1Name,
       player2Name: p2Name,
       matchPoint: parseInt(matchPoint),

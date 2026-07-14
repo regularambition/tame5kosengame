@@ -6,6 +6,8 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly STATE: "state";
     readonly UID: "uid";
     readonly NAME: "name";
+    readonly SCORE: "score";
+    readonly MANA: "mana";
 };
 export declare const PRIVATE_ROOM_KEYS: {
     readonly HOST: "host";
@@ -23,6 +25,8 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoom: (roomId: string) => string;
     readonly privateRoomState: (roomId: string) => string;
     readonly privateRoomGuestName: (roomId: string) => string;
+    readonly privateRoomGuestScore: (roomId: string) => string;
+    readonly privateRoomHostScore: (roomId: string) => string;
     readonly privateRoomSpectator: (roomId: string, uid: string) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;

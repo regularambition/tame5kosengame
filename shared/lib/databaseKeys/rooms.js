@@ -7,6 +7,8 @@ export const GENERAL_ROOM_KEYS = {
     STATE: "state",
     UID: "uid",
     NAME: "name",
+    SCORE: "score",
+    MANA: "mana",
 };
 export const PRIVATE_ROOM_KEYS = {
     HOST: "host",
@@ -24,6 +26,8 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     privateRoom: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}`,
     privateRoomState: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.STATE}`,
     privateRoomGuestName: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
+    privateRoomGuestScore: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
+    privateRoomHostScore: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
     privateRoomSpectator: (roomId, uid) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}/${uid}`,
     privateRoomJoinCode: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
     privateRoomJoinCodeRoomId: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}/${PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID}`,

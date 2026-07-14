@@ -19,3 +19,19 @@ export function watchGuestName(roomId: string, onChange: (s: string) => void) {
     onChange(snapshot.val());
   });
 }
+
+export function watchOpponentFinishedIntro(
+  roomId: string,
+  iAmHost: boolean,
+  onFinished: () => void,
+) {
+  const opponentScoreRef = iAmHost
+    ? ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomGuestScore(roomId))
+    : ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomHostScore(roomId));
+
+  return onValue(opponentScoreRef, (snapshot) => {
+    if (typeof snapshot.val() === "number") {
+      onFinished();
+    }
+  });
+}
