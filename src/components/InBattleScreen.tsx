@@ -1,4 +1,6 @@
-import {useState, useEffect} from "react";
+import "./InBattleScreen.css";
+
+import {useState, useEffect, ReactNode} from "react";
 
 import {Button} from "./ui/Button";
 import {ButtonRow} from "./ui/ButtonRow";
@@ -24,14 +26,72 @@ import {
   isValidPushId,
   RoomState,
   ROOM_STATES,
+  GamePhase,
+  GAME_PHASES,
 } from "@tame5kosengame/shared";
 
 import {MatchInfo} from "../App";
+import {CenterAligningDiv} from "./ui/CenterAligningDiv";
+
+type MainDivProps = {
+  children: ReactNode;
+  className?: string;
+};
+function MainDiv({children, className = "", ...props}: MainDivProps) {
+  return (
+    <CenterAligningDiv
+      className={`vertical-alignment horizontal-centering vertical-centering main-part ${className}`}
+      {...props}
+    >
+      {children}
+    </CenterAligningDiv>
+  );
+}
+
+type PlayerStatusDivProps = {
+  userName: string;
+  className?: string;
+  isPlayer?: boolean;
+};
+function PlayerStatusDiv({userName, className = "", isPlayer = false}: PlayerStatusDivProps) {
+  return (
+    <CenterAligningDiv>
+      <table className={className}>
+        <tbody>
+          <tr>
+            <td>1点</td>
+            <td>
+              {userName}
+              {isPlayer && " (You)"}
+            </td>
+            <td>0マナ</td>
+          </tr>
+        </tbody>
+      </table>
+    </CenterAligningDiv>
+  );
+}
+
+type IntroPhaseDivProps = {matchInfo: MatchInfo};
+function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
+  const {matchPoint, thinkingTimeInSec} = matchInfo;
+  return (
+    <MainDiv>
+      <p>
+        ルール
+        <br />
+        {matchPoint}点先取で勝利
+        <br />
+        毎ターンの思考時間は{thinkingTimeInSec}秒
+        <br />
+      </p>
+    </MainDiv>
+  );
+}
 
 type InBattleScreenProps = {
   matchInfo: MatchInfo;
 };
-
 export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   function debug() {
     const {
@@ -57,9 +117,17 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
     debug();
   }, [matchInfo]);
 
+  const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
+
   return (
-    <main className="screen not-playing-text-general">
-      <p>対戦中の画面</p>
+    <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
+      <PlayerStatusDiv userName={matchInfo.player2Name} className="panel-p2"></PlayerStatusDiv>
+      {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo}></IntroPhaseDiv>}
+      <PlayerStatusDiv
+        userName={matchInfo.player1Name}
+        className="panel-p1"
+        isPlayer={matchInfo.isPlayer}
+      ></PlayerStatusDiv>
     </main>
   );
 }

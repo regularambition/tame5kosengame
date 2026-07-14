@@ -1,0 +1,21 @@
+.vertical-even {
+  justify-content: space-evenly;
+}
+
+.main-part {
+  min-height: 70vh;
+}
+
+table {
+  min-width: 70vw;
+  font-size: 28px;
+  text-align: center;
+}
+
+.panel-p1 {
+  background-image: radial-gradient(circle, #29c68a, #ab412e);
+}
+
+.panel-p2 {
+  background-image: radial-gradient(circle, #6767bb, #e096fe);
+}
