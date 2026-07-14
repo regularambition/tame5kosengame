@@ -19,3 +19,16 @@ table {
 .panel-p2 {
   background-image: radial-gradient(circle, #6767bb, #e096fe);
 }
+
+.spectator-ui {
+  position: absolute;
+  top: 72px;
+  right: 36px;
+  z-index: 10;
+  max-width: 72px;
+}
+
+.icon-spectator {
+  height: 72px;
+  width: 72px;
+}

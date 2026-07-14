@@ -1,4 +1,5 @@
 import "./InBattleScreen.css";
+import spectatorIcon from "../assets/ui/spectatorCount.png";
 
 import {useState, useEffect, ReactNode} from "react";
 
@@ -32,6 +33,7 @@ import {
 
 import {MatchInfo} from "../App";
 import {CenterAligningDiv} from "./ui/CenterAligningDiv";
+import {ResignButton} from "./ui/ResignButton";
 
 type MainDivProps = {
   children: ReactNode;
@@ -68,6 +70,16 @@ function PlayerStatusDiv({userName, className = "", isPlayer = false}: PlayerSta
           </tr>
         </tbody>
       </table>
+    </CenterAligningDiv>
+  );
+}
+
+type SpectatorUiDivProps = {};
+function SpectatorUiDiv({}: SpectatorUiDivProps) {
+  return (
+    <CenterAligningDiv className="spectator-ui">
+      <img className="icon-spectator" src={spectatorIcon} />
+      <span>2</span>
     </CenterAligningDiv>
   );
 }
@@ -121,6 +133,8 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
 
   return (
     <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
+      {matchInfo.isPrivateMatch && <SpectatorUiDiv></SpectatorUiDiv>}
+      <ResignButton onClick={() => {}}></ResignButton>
       <PlayerStatusDiv userName={matchInfo.player2Name} className="panel-p2"></PlayerStatusDiv>
       {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo}></IntroPhaseDiv>}
       <PlayerStatusDiv
