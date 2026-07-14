@@ -22,15 +22,17 @@ import {MatchInfo} from "../App";
 import {CenterAligningDiv} from "./ui/CenterAligningDiv";
 import {ResignButton} from "./ui/ResignButton";
 import {IconButton} from "./ui/IconButton";
+import {ButtonRow} from "./ui/ButtonRow";
 
 type MainDivProps = {
   children: ReactNode;
   className?: string;
+  isVerticalEven?: boolean;
 };
-function MainDiv({children, className = "", ...props}: MainDivProps) {
+function MainDiv({children, className = "", isVerticalEven = false, ...props}: MainDivProps) {
   return (
     <CenterAligningDiv
-      className={`vertical-alignment horizontal-centering vertical-centering main-part ${className}`}
+      className={`vertical-alignment horizontal-centering ${isVerticalEven ? "vertical-even" : "vertical-centering"} main-part ${className}`}
       {...props}
     >
       {children}
@@ -41,9 +43,15 @@ function MainDiv({children, className = "", ...props}: MainDivProps) {
 type PlayerStatusDivProps = {
   userName: string;
   className?: string;
-  isPlayer?: boolean;
+  isPlayer1: boolean;
+  iAmPlayer?: boolean;
 };
-function PlayerStatusDiv({userName, className = "", isPlayer = false}: PlayerStatusDivProps) {
+function PlayerStatusDiv({
+  userName,
+  className = "",
+  isPlayer1,
+  iAmPlayer = true,
+}: PlayerStatusDivProps) {
   return (
     <CenterAligningDiv>
       <table className={className}>
@@ -52,7 +60,7 @@ function PlayerStatusDiv({userName, className = "", isPlayer = false}: PlayerSta
             <td>1点</td>
             <td>
               {userName}
-              {isPlayer && " (You)"}
+              {isPlayer1 && (iAmPlayer ? "(You)" : "(Host)")}
             </td>
             <td>0マナ</td>
           </tr>
@@ -89,42 +97,80 @@ function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
   );
 }
 
+type CardButtonProps = {
+  src: string;
+  label: string;
+  disabled?: boolean;
+};
+function CardButton({src, label, disabled = false}: CardButtonProps) {
+  return (
+    <IconButton
+      className="card-button"
+      iconSrc={src}
+      label={label}
+      // onClick={onClick}
+      disabled={disabled}
+    />
+  );
+}
+
 type SelectingPhaseDivProps = {matchInfo: MatchInfo};
 function SelectingPhaseDiv({matchInfo}: SelectingPhaseDivProps) {
   const {matchPoint, thinkingTimeInSec} = matchInfo;
   return (
     <MainDiv>
       <div className="card-container">
-        <IconButton
-          className="card-button"
-          iconSrc={HANDS.CHARGE.imageSrc}
-          label={HANDS.CHARGE.label}
-          // onClick={onClick}
-          // disabled={disabled}
-        />
-        <IconButton
-          className="card-button"
-          iconSrc={HANDS.DEFENSE.imageSrc}
-          label={HANDS.DEFENSE.label}
-          // onClick={onClick}
-          // disabled={disabled}
-        />
-        <IconButton
-          className="card-button"
-          iconSrc={HANDS.ATTACK.imageSrc}
-          label={HANDS.ATTACK.label}
-          // onClick={onClick}
-          // disabled={disabled}
-        />
-        <IconButton
-          className="card-button"
-          iconSrc={HANDS.BEAM.imageSrc}
-          label={HANDS.BEAM.label}
-          // onClick={onClick}
-          // disabled={disabled}
-        />
+        <CardButton src={HANDS.CHARGE.imageSrc} label={HANDS.CHARGE.label} />
+        <CardButton src={HANDS.DEFENSE.imageSrc} label={HANDS.DEFENSE.label} />
+        <CardButton src={HANDS.ATTACK.imageSrc} label={HANDS.ATTACK.label} />
+        <CardButton src={HANDS.BEAM.imageSrc} label={HANDS.BEAM.label} />
       </div>
       <Button>確定</Button>
+    </MainDiv>
+  );
+}
+
+type ChoiceIconProps = {
+  src: string;
+};
+function ChoiceIcon({src}: ChoiceIconProps) {
+  return <img className="card-button" src={src} alt="" />;
+}
+
+type ResolvedPhaseDivProps = {};
+function ResolvedPhaseDiv({}: ResolvedPhaseDivProps) {
+  return (
+    <MainDiv isVerticalEven={true}>
+      <ChoiceIcon src={HANDS.CHARGE.imageSrc} />
+      <p>選択が揃った後の処理画面</p>
+      <ChoiceIcon src={HANDS.ATTACK.imageSrc} />
+    </MainDiv>
+  );
+}
+
+type FinishedPhaseDivProps = {
+  matchInfo: MatchInfo;
+};
+function FinishedPhaseDiv({matchInfo}: FinishedPhaseDivProps) {
+  const findWinner = (matchInfo: MatchInfo) => {
+    if (matchInfo.isPlayer) {
+      return "YOU";
+    } else {
+      return "HOST";
+    }
+  };
+
+  return (
+    <MainDiv isVerticalEven={true}>
+      <p className="final-score">5 - 3</p>
+      <p className="result-description">WINNER: {findWinner(matchInfo)}</p>
+      {matchInfo.isPrivateMatch && <Button>戻る</Button>}
+      {!matchInfo.isPrivateMatch && (
+        <ButtonRow>
+          <Button>再戦希望</Button>
+          <Button>トップへ戻る</Button>
+        </ButtonRow>
+      )}
     </MainDiv>
   );
 }
@@ -175,15 +221,20 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
     <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
       {matchInfo.isPrivateMatch && <SpectatorUiDiv></SpectatorUiDiv>}
       <ResignButton onClick={updateGamePhase}></ResignButton>
-      <PlayerStatusDiv userName={matchInfo.player2Name} className="panel-p2"></PlayerStatusDiv>
-      {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo}></IntroPhaseDiv>}
-      {gamePhase === GAME_PHASES.SELECTING && (
-        <SelectingPhaseDiv matchInfo={matchInfo}></SelectingPhaseDiv>
-      )}
+      <PlayerStatusDiv
+        userName={matchInfo.player2Name}
+        className="panel-p2"
+        isPlayer1={false}
+      ></PlayerStatusDiv>
+      {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo} />}
+      {gamePhase === GAME_PHASES.SELECTING && <SelectingPhaseDiv matchInfo={matchInfo} />}
+      {gamePhase === GAME_PHASES.RESOLVED && <ResolvedPhaseDiv />}
+      {gamePhase === GAME_PHASES.FINISHED && <FinishedPhaseDiv matchInfo={matchInfo} />}
       <PlayerStatusDiv
         userName={matchInfo.player1Name}
         className="panel-p1"
-        isPlayer={matchInfo.isPlayer}
+        isPlayer1={true}
+        iAmPlayer={matchInfo.isPlayer}
       ></PlayerStatusDiv>
     </main>
   );

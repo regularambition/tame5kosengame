@@ -47,3 +47,11 @@ table {
   width: 128px;
   background-image: radial-gradient(circle, #bcb4b4, #4ab207);
 }
+
+.final-score {
+  font-size: 64px;
+}
+
+.result-description {
+  font-size: 64px;
+}
