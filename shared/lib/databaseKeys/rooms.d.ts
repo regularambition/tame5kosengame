@@ -8,6 +8,9 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly NAME: "name";
     readonly SCORE: "score";
     readonly MANA: "mana";
+    readonly HAS_FINISHED_INTRO: "hasFinishedIntro";
+    readonly GAME: "game";
+    readonly PHASE: "phase";
 };
 export declare const PRIVATE_ROOM_KEYS: {
     readonly HOST: "host";
@@ -28,6 +31,7 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoomGuestScore: (roomId: string) => string;
     readonly privateRoomHostScore: (roomId: string) => string;
     readonly privateRoomSpectator: (roomId: string, uid: string) => string;
+    readonly privateRoomGamePhase: (roomId: string) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
 };

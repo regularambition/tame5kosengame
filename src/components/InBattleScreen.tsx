@@ -24,7 +24,7 @@ import {ResignButton} from "./ui/ResignButton";
 import {IconButton} from "./ui/IconButton";
 import {ButtonRow} from "./ui/ButtonRow";
 import {initializeAfterIntro} from "../api/inBattle/initializeAfterIntro";
-import {watchOpponentFinishedIntro} from "../api/watchPrivateRoom";
+import {watchPrivateRoomGamePhase} from "../api/watchPrivateRoom";
 
 type MainDivProps = {
   children: ReactNode;
@@ -230,9 +230,11 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
       return;
     }
 
-    const unsubscribe = watchOpponentFinishedIntro(matchInfo.roomId, matchInfo.iAmHost, () =>
-      setGamePhase(GAME_PHASES.SELECTING),
-    );
+    const unsubscribe = watchPrivateRoomGamePhase(matchInfo.roomId, (phase: GamePhase) => {
+      if (phase === GAME_PHASES.SELECTING) {
+        setGamePhase(GAME_PHASES.SELECTING);
+      }
+    });
     return unsubscribe;
   }, [gamePhase, hasInitialized]);
 

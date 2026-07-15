@@ -15,6 +15,7 @@ import {
   GENERAL_ROOM_KEYS,
   PRIVATE_ROOM_JOIN_CODE_KEYS,
   PRIVATE_ROOM_KEYS,
+  GAME_PHASES,
 } from "@tame5kosengame/shared";
 import type {
   CreatePrivateRoomRequest,
@@ -118,6 +119,9 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
           },
           [PRIVATE_ROOM_KEYS.JOIN_CODE_HASH]: joinCodeHash,
           [GENERAL_ROOM_KEYS.STATE]: ROOM_STATES.PREPARING,
+          [GENERAL_ROOM_KEYS.GAME]: {
+            [GENERAL_ROOM_KEYS.PHASE]: GAME_PHASES.INTRO,
+          },
         },
         [DATABASE_PATHS_FOR_ROOMS.privateRoomJoinCodeRoomId(joinCodeHash)]: internalRoomId,
       });

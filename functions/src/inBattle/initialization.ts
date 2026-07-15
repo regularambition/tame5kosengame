@@ -10,9 +10,11 @@ import {
   // isValidPushId,
   // ROOM_STATES,
   DATABASE_PATHS_FOR_ROOMS,
+  GAME_PHASES,
   GENERAL_ROOM_KEYS,
   // PRIVATE_ROOM_JOIN_CODE_KEYS,
   PRIVATE_ROOM_KEYS,
+  ROOM_STATES,
 } from "@tame5kosengame/shared";
 import type {
   InitializeAfterIntroRequest,
@@ -39,15 +41,48 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
       throw new HttpsError("failed-precondition", "Invalid user.");
     }
 
-    const targetRef =
-      uid === hostUid
-        ? roomRef.child(PRIVATE_ROOM_KEYS.HOST)
-        : roomRef.child(PRIVATE_ROOM_KEYS.GUEST);
+    const iAmHost = uid === hostUid;
+    let retryCount = 10;
+    const result = await roomRef.transaction((room) => {
+      if (room === null) {
+        if (retryCount > 0) {
+          --retryCount;
+          return room;
+        } else {
+          return undefined;
+        }
+      }
 
-    await targetRef.update({
-      [GENERAL_ROOM_KEYS.SCORE]: 0,
-      [GENERAL_ROOM_KEYS.MANA]: 1,
+      if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
+        return undefined;
+      }
+
+      const phase = room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.PHASE];
+      if (phase !== GAME_PHASES.INTRO) {
+        return undefined;
+      }
+
+      const currentPlayer = iAmHost ? room[PRIVATE_ROOM_KEYS.HOST] : room[PRIVATE_ROOM_KEYS.GUEST];
+      // 同じプレイヤーから再度呼ばれても再初期化しない
+      if (currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] !== true) {
+        currentPlayer[GENERAL_ROOM_KEYS.SCORE] = 0;
+        currentPlayer[GENERAL_ROOM_KEYS.MANA] = 1;
+        currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] = true;
+      }
+
+      const hostInitialized =
+        room[PRIVATE_ROOM_KEYS.HOST][GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] === true;
+      const guestInitialized =
+        room[PRIVATE_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] === true;
+      if (hostInitialized && guestInitialized) {
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.SELECTING;
+      }
+
+      return room;
     });
+    if (!result.committed) {
+      throw new HttpsError("failed-precondition", "Initialization failed.");
+    }
 
     return {hasSucceeded: true};
   },

@@ -2,7 +2,7 @@ import {onValue, ref} from "firebase/database";
 
 import {database} from "../firebase";
 
-import {DATABASE_PATHS_FOR_ROOMS, RoomState} from "@tame5kosengame/shared";
+import {DATABASE_PATHS_FOR_ROOMS, GAME_PHASES, GamePhase, RoomState} from "@tame5kosengame/shared";
 
 export function watchPrivateRoomState(roomId: string, onChange: (st: RoomState) => void) {
   const stateRef = ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomState(roomId));
@@ -20,18 +20,15 @@ export function watchGuestName(roomId: string, onChange: (s: string) => void) {
   });
 }
 
-export function watchOpponentFinishedIntro(
+export function watchPrivateRoomGamePhase(
   roomId: string,
-  iAmHost: boolean,
-  onFinished: () => void,
+  onChange: (gamePhase: GamePhase) => void,
 ) {
-  const opponentScoreRef = iAmHost
-    ? ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomGuestScore(roomId))
-    : ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomHostScore(roomId));
+  const gamePhaseRef = ref(database, DATABASE_PATHS_FOR_ROOMS.privateRoomGamePhase(roomId));
 
-  return onValue(opponentScoreRef, (snapshot) => {
-    if (typeof snapshot.val() === "number") {
-      onFinished();
+  return onValue(gamePhaseRef, (snapshot) => {
+    if (snapshot.val() !== null) {
+      onChange(snapshot.val());
     }
   });
 }

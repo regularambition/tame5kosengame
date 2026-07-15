@@ -10,6 +10,9 @@ export const GENERAL_ROOM_KEYS = {
   NAME: "name",
   SCORE: "score",
   MANA: "mana",
+  HAS_FINISHED_INTRO: "hasFinishedIntro",
+  GAME: "game",
+  PHASE: "phase",
 } as const;
 
 export const PRIVATE_ROOM_KEYS = {
@@ -44,6 +47,9 @@ export const DATABASE_PATHS_FOR_ROOMS = {
 
   privateRoomSpectator: (roomId: string, uid: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}/${uid}`,
+
+  privateRoomGamePhase: (roomId: string) =>
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}/${GENERAL_ROOM_KEYS.PHASE}`,
 
   privateRoomJoinCode: (joinCodeHash: string) =>
     `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
