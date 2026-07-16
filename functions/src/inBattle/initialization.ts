@@ -12,6 +12,7 @@ import {
   GENERAL_ROOM_KEYS,
   PRIVATE_ROOM_KEYS,
   ROOM_STATES,
+  INITIAL_VALUES_IN_BATTLE,
 } from "@tame5kosengame/shared";
 import type {
   InitializeAfterIntroRequest,
@@ -74,8 +75,8 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
       const currentPlayer = iAmHost ? room[PRIVATE_ROOM_KEYS.HOST] : room[PRIVATE_ROOM_KEYS.GUEST];
       // 同じプレイヤーから再度呼ばれても再初期化しない
       if (currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] !== true) {
-        currentPlayer[GENERAL_ROOM_KEYS.SCORE] = 0;
-        currentPlayer[GENERAL_ROOM_KEYS.MANA] = 1;
+        currentPlayer[GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+        currentPlayer[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
         currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] = true;
       }
 
@@ -93,7 +94,8 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
         }
         room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.HAND_SUBMISSION_DEADLINE] =
           findHandSubmissionDeadline(thinkingTimeInSec);
-        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.ROUND_NUMBER] = 0;
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.ROUND_NUMBER] =
+          INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER;
       }
 
       return room;

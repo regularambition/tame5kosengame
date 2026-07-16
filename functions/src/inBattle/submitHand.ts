@@ -9,6 +9,7 @@ import {
   GENERAL_ROOM_KEYS,
   PRIVATE_ROOM_KEYS,
   ROOM_STATES,
+  isValidHand,
 } from "@tame5kosengame/shared";
 import type {SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
 
@@ -22,6 +23,9 @@ export const submitHand = onCall<SubmitHandRequest>(
     console.log(hand);
     if (!isValidPushId(roomId)) {
       throw new HttpsError("invalid-argument", "Invalid room ID.");
+    }
+    if (!isValidHand(hand)) {
+      throw new HttpsError("invalid-argument", "Invalid hand.");
     }
     if (typeof roundNumber !== "number") {
       throw new HttpsError("invalid-argument", "Invalid round number.");

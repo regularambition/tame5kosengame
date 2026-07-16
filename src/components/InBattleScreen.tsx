@@ -19,6 +19,7 @@ import {
   DURATION_IN_MILLI_SEC,
   HandId,
   HAND_IDS,
+  INITIAL_VALUES_IN_BATTLE,
 } from "@tame5kosengame/shared";
 
 import {MatchInfo} from "../App";
@@ -124,6 +125,7 @@ function CardButton({src, label, disabled = false, onClick}: CardButtonProps) {
 }
 
 const HAND_SUBMISSION_RETRY_INTERVAL_MS = 1000;
+const MINIMUM_REQUEST_MARGIN_MS = 250;
 type UseScheduledHandSubmissionArgs = {
   deadline: number | null;
   selectedHand: HandId;
@@ -217,8 +219,8 @@ export function useScheduledHandSubmission({
         // deadlineはバッファを含む最終受理期限
         const remainingUntilDeadlineMs = deadline - now();
 
-        if (remainingUntilDeadlineMs <= 0) {
-          console.error("手の提出期限を過ぎたため、再試行を終了します。");
+        if (remainingUntilDeadlineMs <= MINIMUM_REQUEST_MARGIN_MS) {
+          console.error("手の提出期限が迫っているため、再試行を終了します。");
           return;
         }
 
@@ -259,8 +261,9 @@ export function useScheduledHandSubmission({
 type SelectingPhaseDivProps = {
   matchInfo: MatchInfo;
   roundNumber: number;
+  onFinishSubmission: () => void;
 };
-function SelectingPhaseDiv({matchInfo, roundNumber}: SelectingPhaseDivProps) {
+function SelectingPhaseDiv({matchInfo, roundNumber, onFinishSubmission}: SelectingPhaseDivProps) {
   const {matchPoint, thinkingTimeInSec} = matchInfo;
   const [selectedHand, setSelectedHand] = useState<HandId>(HAND_IDS.CHARGE);
   const [handSubmissionDeadline, setHandSubmissionDeadline] = useState<number | null>(null);
@@ -281,7 +284,12 @@ function SelectingPhaseDiv({matchInfo, roundNumber}: SelectingPhaseDivProps) {
     selectedHand: selectedHand,
     roundNumber: roundNumber,
     submitHand: async (hand) => {
+      if (!isValidPushId(matchInfo.roomId)) {
+        throw new Error();
+      }
       await submitHand(matchInfo.roomId, hand, roundNumber);
+
+      onFinishSubmission();
     },
   };
 
@@ -369,7 +377,7 @@ type InBattleScreenProps = {
 export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
   const [hasInitialized, setHasInitialized] = useState<boolean>(false);
-  const [roundNumber, setRoundNumber] = useState<number>(0);
+  const [roundNumber, setRoundNumber] = useState<number>(INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER);
 
   function debug() {
     const {
@@ -394,10 +402,15 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   }
 
   useEffect(() => {
-    debug();
+    // debug();
+
+    const INTRO_DISPLAYING_DURATION_MILLI_SEC = 3000;
 
     const timerId = window.setTimeout(async () => {
       try {
+        if (!isValidPushId(matchInfo.roomId)) {
+          throw new Error();
+        }
         await initializeAfterIntro(matchInfo.roomId);
       } catch (error) {
         console.log(`error = ${error}`);
@@ -405,7 +418,7 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
         return;
       }
       setHasInitialized(true);
-    }, 3000);
+    }, INTRO_DISPLAYING_DURATION_MILLI_SEC);
 
     return () => {
       window.clearTimeout(timerId);
@@ -452,7 +465,13 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
       ></PlayerStatusDiv>
       {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo} />}
       {gamePhase === GAME_PHASES.SELECTING && (
-        <SelectingPhaseDiv matchInfo={matchInfo} roundNumber={roundNumber} />
+        <SelectingPhaseDiv
+          matchInfo={matchInfo}
+          roundNumber={roundNumber}
+          onFinishSubmission={() => {
+            setGamePhase(GAME_PHASES.RESOLVED);
+          }}
+        />
       )}
       {gamePhase === GAME_PHASES.RESOLVED && <ResolvedPhaseDiv />}
       {gamePhase === GAME_PHASES.FINISHED && <FinishedPhaseDiv matchInfo={matchInfo} />}
