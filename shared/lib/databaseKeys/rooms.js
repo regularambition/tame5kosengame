@@ -12,6 +12,8 @@ export const GENERAL_ROOM_KEYS = {
     HAS_FINISHED_INTRO: "hasFinishedIntro",
     GAME: "game",
     PHASE: "phase",
+    HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline",
+    RECONNECT_DEADLINE: "reconnectDeadline",
 };
 export const PRIVATE_ROOM_KEYS = {
     HOST: "host",

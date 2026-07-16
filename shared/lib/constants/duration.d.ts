@@ -1,0 +1,4 @@
+export declare const DURATION_IN_MILLI_SEC: {
+    readonly HAND_SUBMISSION_DEADLINE_BUFFER: 10000;
+    readonly RECONNECT_GRACE: 30000;
+};

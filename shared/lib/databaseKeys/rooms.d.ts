@@ -11,6 +11,8 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly HAS_FINISHED_INTRO: "hasFinishedIntro";
     readonly GAME: "game";
     readonly PHASE: "phase";
+    readonly HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline";
+    readonly RECONNECT_DEADLINE: "reconnectDeadline";
 };
 export declare const PRIVATE_ROOM_KEYS: {
     readonly HOST: "host";

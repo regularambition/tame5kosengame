@@ -214,6 +214,7 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
       try {
         await initializeAfterIntro(matchInfo.roomId);
       } catch (error) {
+        console.log(`error = ${error}`);
         console.log("初期化失敗");
         return;
       }
