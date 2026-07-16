@@ -74,16 +74,16 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
 
       const currentPlayer = iAmHost ? room[PRIVATE_ROOM_KEYS.HOST] : room[PRIVATE_ROOM_KEYS.GUEST];
       // 同じプレイヤーから再度呼ばれても再初期化しない
-      if (currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] !== true) {
+      if (currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTERLUDE] !== true) {
         currentPlayer[GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
         currentPlayer[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-        currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] = true;
+        currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTERLUDE] = true;
       }
 
       const hostInitialized =
-        room[PRIVATE_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] === true;
+        room[PRIVATE_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.HAS_FINISHED_INTERLUDE] === true;
       const guestInitialized =
-        room[PRIVATE_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] === true;
+        room[PRIVATE_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.HAS_FINISHED_INTERLUDE] === true;
       if (hostInitialized && guestInitialized) {
         room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.SELECTING;
 
@@ -96,6 +96,7 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
           findHandSubmissionDeadline(thinkingTimeInSec);
         room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.ROUND_NUMBER] =
           INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER;
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND] = null;
       }
 
       return room;
@@ -128,7 +129,7 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
     if (finalPlayer === null) {
       throw new HttpsError("permission-denied", "User is not a player.");
     }
-    if (finalPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTRO] !== true) {
+    if (finalPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTERLUDE] !== true) {
       throw new HttpsError("failed-precondition", "Player initialization failed.");
     }
 

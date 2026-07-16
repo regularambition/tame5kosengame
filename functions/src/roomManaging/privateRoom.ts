@@ -29,6 +29,7 @@ import type {
   MarkAsReadyRequest,
   MarkAsReadyResponse,
 } from "@tame5kosengame/shared";
+import {findNextPhaseAt} from "../inBattle/timestampGenerator";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
 const MAX_JOIN_CODE_GENERATION_ATTEMPTS = 10;
@@ -409,7 +410,12 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
         room[PRIVATE_ROOM_KEYS.GUEST][PRIVATE_ROOM_KEYS.READY] === true
       ) {
         room[GENERAL_ROOM_KEYS.STATE] = ROOM_STATES.PLAYING;
-        // room.startedAt = ServerValue.TIMESTAMP;
+
+        room[GENERAL_ROOM_KEYS.GAME] ??= {};
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND][
+          GENERAL_ROOM_KEYS.NEXT_PHASE_AT
+        ] = findNextPhaseAt();
       }
 
       return room;

@@ -8,7 +8,7 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly NAME: "name";
     readonly SCORE: "score";
     readonly MANA: "mana";
-    readonly HAS_FINISHED_INTRO: "hasFinishedIntro";
+    readonly HAS_FINISHED_INTERLUDE: "hasFinishedInterlude";
     readonly GAME: "game";
     readonly PHASE: "phase";
     readonly HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline";
@@ -16,6 +16,10 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly SUBMITTED_PLAYERS: "submittedPlayers";
     readonly ROUND_NUMBER: "roundNumber";
     readonly HANDS_OF: "handsOf";
+    readonly RESOLVED_ROUND: "resolvedRound";
+    readonly WINNER_UID: "winnerUid";
+    readonly RESOLVED_AT: "resolvedAt";
+    readonly NEXT_PHASE_AT: "nextPhaseAt";
 };
 export declare const PRIVATE_ROOM_KEYS: {
     readonly HOST: "host";
@@ -38,6 +42,8 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoomSpectator: (roomId: string, uid: string) => string;
     readonly gamePhase: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly handSubmissionDeadline: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly resolvedRound: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly nextPhaseAt: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
     readonly privateRoomHiddenHand: (roomId: string, roundNumber: number) => string;

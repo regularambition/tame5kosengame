@@ -32,6 +32,7 @@ import {watchGamePhase} from "../api/inBattle/watchGamePhase";
 import {useServerClock} from "../contexts/ServerClockContext";
 import {watchHandSubmissionDeadline} from "../api/inBattle/watchHandSubmissionDeadline";
 import {submitHand} from "../api/inBattle/submitHand";
+import {watchNextPhaseAt} from "../api/inBattle/watchNextPhaseAt";
 
 type MainDivProps = {
   children: ReactNode;
@@ -92,6 +93,54 @@ function SpectatorUiDiv({}: SpectatorUiDivProps) {
 type IntroPhaseDivProps = {matchInfo: MatchInfo};
 function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
   const {matchPoint, thinkingTimeInSec} = matchInfo;
+  const {isReady, now} = useServerClock();
+
+  const [startAt, setStartAt] = useState<number | null>(null);
+  const timeoutIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = watchNextPhaseAt(
+      matchInfo.roomId,
+      (nextPhaseAt: number) => {
+        setStartAt(nextPhaseAt);
+      },
+      true,
+    );
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!isReady || startAt === null) {
+      return;
+    }
+
+    const transitionTime = startAt - DURATION_IN_MILLI_SEC.INTERLUDE_BUFFER;
+    const remainingMs = transitionTime - now();
+
+    const tryInitialize = async () => {
+      try {
+        if (!isValidPushId(matchInfo.roomId)) {
+          throw new Error();
+        }
+        await initializeAfterIntro(matchInfo.roomId);
+      } catch (error) {
+        console.log(`error = ${error}`);
+        console.log("初期化失敗");
+        return;
+      }
+
+      if (timeoutIdRef.current !== null) {
+        window.clearTimeout(timeoutIdRef.current);
+      }
+    };
+
+    if (remainingMs > 0) {
+      timeoutIdRef.current = window.setTimeout(tryInitialize, remainingMs);
+    } else {
+      tryInitialize;
+    }
+  }, [startAt]);
+
   return (
     <MainDiv>
       <p>
@@ -376,7 +425,6 @@ type InBattleScreenProps = {
 };
 export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
-  const [hasInitialized, setHasInitialized] = useState<boolean>(false);
   const [roundNumber, setRoundNumber] = useState<number>(INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER);
 
   function debug() {
@@ -402,45 +450,8 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   }
 
   useEffect(() => {
-    // debug();
-
-    const INTRO_DISPLAYING_DURATION_MILLI_SEC = 3000;
-
-    const timerId = window.setTimeout(async () => {
-      try {
-        if (!isValidPushId(matchInfo.roomId)) {
-          throw new Error();
-        }
-        await initializeAfterIntro(matchInfo.roomId);
-      } catch (error) {
-        console.log(`error = ${error}`);
-        console.log("初期化失敗");
-        return;
-      }
-      setHasInitialized(true);
-    }, INTRO_DISPLAYING_DURATION_MILLI_SEC);
-
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (gamePhase !== GAME_PHASES.INTRO || !hasInitialized) {
-      return;
-    }
-
-    const unsubscribe = watchGamePhase(
-      matchInfo.roomId,
-      (phase: GamePhase) => {
-        if (phase === GAME_PHASES.SELECTING) {
-          setGamePhase(GAME_PHASES.SELECTING);
-        }
-      },
-      true,
-    );
-    return unsubscribe;
-  }, [gamePhase, hasInitialized]);
+    return watchGamePhase(matchInfo.roomId, setGamePhase, true);
+  }, [matchInfo.roomId]);
 
   function updateGamePhase() {
     if (gamePhase === GAME_PHASES.INTRO) {
