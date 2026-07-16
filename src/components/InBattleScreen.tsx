@@ -1,7 +1,7 @@
 import "./InBattleScreen.css";
 import spectatorIcon from "../assets/ui/spectatorCount.png";
 
-import {useState, useEffect, ReactNode} from "react";
+import {useState, useEffect, ReactNode, useRef} from "react";
 
 import {Button} from "./ui/Button";
 import {HANDS} from "../constants/hands";
@@ -16,6 +16,9 @@ import {
   ROOM_STATES,
   GamePhase,
   GAME_PHASES,
+  DURATION_IN_MILLI_SEC,
+  HandId,
+  HAND_IDS,
 } from "@tame5kosengame/shared";
 
 import {MatchInfo} from "../App";
@@ -24,7 +27,10 @@ import {ResignButton} from "./ui/ResignButton";
 import {IconButton} from "./ui/IconButton";
 import {ButtonRow} from "./ui/ButtonRow";
 import {initializeAfterIntro} from "../api/inBattle/initializeAfterIntro";
-import {watchPrivateRoomGamePhase} from "../api/watchPrivateRoom";
+import {watchGamePhase} from "../api/inBattle/watchGamePhase";
+import {useServerClock} from "../contexts/ServerClockContext";
+import {watchHandSubmissionDeadline} from "../api/inBattle/watchHandSubmissionDeadline";
+import {submitHand} from "../api/inBattle/submitHand";
 
 type MainDivProps = {
   children: ReactNode;
@@ -103,30 +109,209 @@ type CardButtonProps = {
   src: string;
   label: string;
   disabled?: boolean;
+  onClick?: () => void;
 };
-function CardButton({src, label, disabled = false}: CardButtonProps) {
+function CardButton({src, label, disabled = false, onClick}: CardButtonProps) {
   return (
     <IconButton
       className="card-button"
       iconSrc={src}
       label={label}
-      // onClick={onClick}
+      onClick={onClick}
       disabled={disabled}
     />
   );
 }
 
-type SelectingPhaseDivProps = {matchInfo: MatchInfo};
-function SelectingPhaseDiv({matchInfo}: SelectingPhaseDivProps) {
+const HAND_SUBMISSION_RETRY_INTERVAL_MS = 1000;
+type UseScheduledHandSubmissionArgs = {
+  deadline: number | null;
+  selectedHand: HandId;
+  roundNumber: number;
+  submitHand: (hand: HandId, roundId: number) => Promise<void>;
+};
+export function useScheduledHandSubmission({
+  deadline,
+  selectedHand,
+  roundNumber,
+  submitHand,
+}: UseScheduledHandSubmissionArgs) {
+  const {isReady, now} = useServerClock();
+
+  const selectedHandRef = useRef(selectedHand);
+  const submitHandRef = useRef(submitHand);
+  const submittedRoundRef = useRef<number | null>(null);
+  const isSubmittingRef = useRef(false);
+
+  // nullはdeadlineまたは時刻情報の読み込み中を表す
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    selectedHandRef.current = selectedHand;
+  }, [selectedHand]);
+
+  useEffect(() => {
+    submitHandRef.current = submitHand;
+  }, [submitHand]);
+
+  useEffect(() => {
+    if (!isReady || deadline === null) {
+      setRemainingMs(null);
+      return;
+    }
+
+    const submissionTime = deadline - DURATION_IN_MILLI_SEC.HAND_SUBMISSION_DEADLINE_BUFFER;
+
+    let timeoutId: number | undefined;
+    let disposed = false;
+
+    const trySubmit = async () => {
+      if (disposed) {
+        console.log("手の提出処理が始まったので古い予約は無効化されたのだ");
+        return;
+      }
+
+      const nextRemainingMs = Math.max(0, submissionTime - now());
+
+      // stateを更新することで画面を再レンダーする
+      setRemainingMs(nextRemainingMs);
+
+      if (submittedRoundRef.current === roundNumber) {
+        console.log("このラウンドはもう手を提出済みなのだ");
+        return;
+      }
+
+      const scheduleNext = (delayMs: number) => {
+        if (timeoutId !== undefined) {
+          console.log("二重タイマー防止のため古い予約を消したのだ");
+          window.clearTimeout(timeoutId);
+        }
+
+        timeoutId = window.setTimeout(trySubmit, delayMs);
+      };
+
+      if (nextRemainingMs > 0) {
+        console.log("まだ提出時刻が来てないので実行を予約するのだ");
+        scheduleNext(Math.min(nextRemainingMs, HAND_SUBMISSION_RETRY_INTERVAL_MS));
+        return;
+      }
+
+      if (isSubmittingRef.current) {
+        console.log("手の提出処理中なのだ");
+        return;
+      }
+
+      isSubmittingRef.current = true;
+
+      try {
+        await submitHandRef.current(selectedHandRef.current, roundNumber);
+        submittedRoundRef.current = roundNumber;
+      } catch (error) {
+        console.error("手の提出に失敗しました。", error);
+
+        if (disposed) {
+          console.log("手の提出処理が始まったので古い予約は無効化されたのだ（catchブロック）");
+          return;
+        }
+
+        // deadlineはバッファを含む最終受理期限
+        const remainingUntilDeadlineMs = deadline - now();
+
+        if (remainingUntilDeadlineMs <= 0) {
+          console.error("手の提出期限を過ぎたため、再試行を終了します。");
+          return;
+        }
+
+        const retryDelayMs = Math.min(HAND_SUBMISSION_RETRY_INTERVAL_MS, remainingUntilDeadlineMs);
+
+        console.log(`${retryDelayMs}ms後に手の提出を再試行します。`);
+
+        scheduleNext(retryDelayMs);
+      } finally {
+        isSubmittingRef.current = false;
+      }
+    };
+
+    void trySubmit();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void trySubmit();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [deadline, isReady, now, roundNumber]);
+
+  return remainingMs;
+}
+
+type SelectingPhaseDivProps = {
+  matchInfo: MatchInfo;
+  roundNumber: number;
+};
+function SelectingPhaseDiv({matchInfo, roundNumber}: SelectingPhaseDivProps) {
   const {matchPoint, thinkingTimeInSec} = matchInfo;
+  const [selectedHand, setSelectedHand] = useState<HandId>(HAND_IDS.CHARGE);
+  const [handSubmissionDeadline, setHandSubmissionDeadline] = useState<number | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = watchHandSubmissionDeadline(
+      matchInfo.roomId,
+      (deadline: number) => {
+        setHandSubmissionDeadline(deadline);
+      },
+      true,
+    );
+    return unsubscribe;
+  }, []);
+
+  const args: UseScheduledHandSubmissionArgs = {
+    deadline: handSubmissionDeadline,
+    selectedHand: selectedHand,
+    roundNumber: roundNumber,
+    submitHand: async (hand) => {
+      await submitHand(matchInfo.roomId, hand, roundNumber);
+    },
+  };
+
+  const remainingMs = useScheduledHandSubmission(args);
+  const remainingSeconds = remainingMs === null ? null : Math.ceil(remainingMs / 1_000);
+
   return (
     <MainDiv>
-      <p>残り5秒</p>
+      <p>{remainingSeconds === null ? "残り時間を取得中..." : `残り${remainingSeconds}秒`}</p>
       <div className="card-container">
-        <CardButton src={HANDS.CHARGE.imageSrc} label={HANDS.CHARGE.label} />
-        <CardButton src={HANDS.DEFENSE.imageSrc} label={HANDS.DEFENSE.label} />
-        <CardButton src={HANDS.ATTACK.imageSrc} label={HANDS.ATTACK.label} />
-        <CardButton src={HANDS.BEAM.imageSrc} label={HANDS.BEAM.label} />
+        <CardButton
+          src={HANDS.CHARGE.imageSrc}
+          label={HANDS.CHARGE.label}
+          onClick={() => setSelectedHand(HAND_IDS.CHARGE)}
+        />
+        <CardButton
+          src={HANDS.DEFENSE.imageSrc}
+          label={HANDS.DEFENSE.label}
+          onClick={() => setSelectedHand(HAND_IDS.DEFENSE)}
+        />
+        <CardButton
+          src={HANDS.ATTACK.imageSrc}
+          label={HANDS.ATTACK.label}
+          onClick={() => setSelectedHand(HAND_IDS.ATTACK)}
+        />
+        <CardButton
+          src={HANDS.BEAM.imageSrc}
+          label={HANDS.BEAM.label}
+          onClick={() => setSelectedHand(HAND_IDS.BEAM)}
+        />
       </div>
       <Button>確定</Button>
     </MainDiv>
@@ -184,6 +369,7 @@ type InBattleScreenProps = {
 export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
   const [hasInitialized, setHasInitialized] = useState<boolean>(false);
+  const [roundNumber, setRoundNumber] = useState<number>(0);
 
   function debug() {
     const {
@@ -231,11 +417,15 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
       return;
     }
 
-    const unsubscribe = watchPrivateRoomGamePhase(matchInfo.roomId, (phase: GamePhase) => {
-      if (phase === GAME_PHASES.SELECTING) {
-        setGamePhase(GAME_PHASES.SELECTING);
-      }
-    });
+    const unsubscribe = watchGamePhase(
+      matchInfo.roomId,
+      (phase: GamePhase) => {
+        if (phase === GAME_PHASES.SELECTING) {
+          setGamePhase(GAME_PHASES.SELECTING);
+        }
+      },
+      true,
+    );
     return unsubscribe;
   }, [gamePhase, hasInitialized]);
 
@@ -261,7 +451,9 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
         isPlayer1={false}
       ></PlayerStatusDiv>
       {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo} />}
-      {gamePhase === GAME_PHASES.SELECTING && <SelectingPhaseDiv matchInfo={matchInfo} />}
+      {gamePhase === GAME_PHASES.SELECTING && (
+        <SelectingPhaseDiv matchInfo={matchInfo} roundNumber={roundNumber} />
+      )}
       {gamePhase === GAME_PHASES.RESOLVED && <ResolvedPhaseDiv />}
       {gamePhase === GAME_PHASES.FINISHED && <FinishedPhaseDiv matchInfo={matchInfo} />}
       <PlayerStatusDiv

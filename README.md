@@ -78,3 +78,7 @@ firebase functions:secrets:set JOIN_CODE_SECRET
 
 ※設定値を確認したい場合は以下を実行<br>
 firebase functions:secrets:access JOIN_CODE_SECRET
+
+## 遭遇したエラーログと原因（簡易トラブルシューティング）
+
+- Access to fetch at 'https://xxxxxxx/{apiName}' from origin 'http://localhost:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.<br>→ functions/src/index.tsに公開したいAPIの名前を明記してexportするのを忘れていた

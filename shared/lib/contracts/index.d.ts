@@ -6,3 +6,4 @@ export * from "./leavePrivateRoom.js";
 export * from "./deletePrivateRoom.js";
 export * from "./markAsReady.js";
 export * from "./initializeAfterIntro.js";
+export * from "./submitHand.js";

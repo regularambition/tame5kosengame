@@ -93,6 +93,7 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
         }
         room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.HAND_SUBMISSION_DEADLINE] =
           findHandSubmissionDeadline(thinkingTimeInSec);
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.ROUND_NUMBER] = 0;
       }
 
       return room;

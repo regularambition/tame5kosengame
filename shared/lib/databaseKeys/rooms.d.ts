@@ -13,6 +13,9 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly PHASE: "phase";
     readonly HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline";
     readonly RECONNECT_DEADLINE: "reconnectDeadline";
+    readonly SUBMITTED_PLAYERS: "submittedPlayers";
+    readonly ROUND_NUMBER: "roundNumber";
+    readonly HANDS_OF: "handsOf";
 };
 export declare const PRIVATE_ROOM_KEYS: {
     readonly HOST: "host";
@@ -33,7 +36,9 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoomGuestScore: (roomId: string) => string;
     readonly privateRoomHostScore: (roomId: string) => string;
     readonly privateRoomSpectator: (roomId: string, uid: string) => string;
-    readonly privateRoomGamePhase: (roomId: string) => string;
+    readonly gamePhase: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly handSubmissionDeadline: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
+    readonly privateRoomHiddenHand: (roomId: string, roundNumber: number) => string;
 };

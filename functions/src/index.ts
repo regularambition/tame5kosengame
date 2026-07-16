@@ -17,7 +17,7 @@ import {
   deletePrivateRoom,
   markAsReady,
 } from "./roomManaging/privateRoom";
-import {initializeAfterIntro} from "./inBattle";
+import {initializeAfterIntro, submitHand} from "./inBattle";
 
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
@@ -46,4 +46,5 @@ export {
   deletePrivateRoom,
   markAsReady,
   initializeAfterIntro,
+  submitHand,
 };
