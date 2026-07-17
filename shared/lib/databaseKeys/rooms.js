@@ -10,6 +10,7 @@ export const GENERAL_ROOM_KEYS = {
     SCORE: "score",
     MANA: "mana",
     HAS_FINISHED_INTERLUDE: "hasFinishedInterlude",
+    FINAL_WINNER_UID: "finalWinnerUid",
     GAME: "game",
     PHASE: "phase",
     HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline",

@@ -17,6 +17,12 @@ import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengam
 import {ServerValue} from "firebase-admin/database";
 import {findNextPhaseAt} from "./timestampGenerator";
 
+import {createHash} from "crypto";
+import {getFunctions} from "firebase-admin/functions";
+import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
+import {FinishResolvedPhaseTask} from "../contracts";
+import {ALGORITHM_NAME} from "../config";
+
 function findManaGain(hand: HandId): number {
   if (hand === HAND_IDS.CHARGE) {
     return 1;
@@ -75,6 +81,45 @@ function findScoreGain(winnersHand: HandId, winnerUid: string, uid: string) {
     return 2;
   } else {
     return 0;
+  }
+}
+
+function makeFinishIntroTaskId(roomId: string, nextPhaseAt: number): string {
+  return createHash(ALGORITHM_NAME)
+    .update(`finish-resolved:${roomId}:${nextPhaseAt}`)
+    .digest("hex");
+}
+
+async function enqueueFinishResolvedPhase(
+  roomId: string,
+  nextPhaseAt: number,
+  hostUid: string,
+  guestUid: string,
+): Promise<void> {
+  const queue = getFunctions().taskQueue(buildTaskPath("finishResolvedPhase"));
+
+  try {
+    await queue.enqueue(
+      {
+        roomId,
+        nextPhaseAt,
+        hostUid,
+        guestUid,
+      } satisfies FinishResolvedPhaseTask,
+      {
+        scheduleTime: new Date(nextPhaseAt),
+
+        // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
+        id: makeFinishIntroTaskId(roomId, nextPhaseAt),
+      },
+    );
+  } catch (error) {
+    // 通信再試行などで同じタスクを再登録した場合は成功扱い
+    if (isTaskAlreadyAdded(error)) {
+      return;
+    }
+
+    throw error;
   }
 }
 
@@ -155,94 +200,112 @@ export const submitHand = onCall<SubmitHandRequest>(
       {uid: guestUid, hand: handsOf[guestUid]},
     );
 
-    if (bothSubmitted) {
-      const result = await roomRef.transaction((room) => {
-        if (room === null || room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
-          return room;
-        }
-
-        const game = room[GENERAL_ROOM_KEYS.GAME];
-        if (
-          game?.[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
-          game?.[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
-        ) {
-          return room;
-        }
-
-        game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.RESOLVED;
-
-        game[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
-        const resolvedRound = game[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
-        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] = roundNumber;
-        resolvedRound[GENERAL_ROOM_KEYS.WINNER_UID] = winnerUid;
-        resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
-        resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
-
-        resolvedRound[hostUid] ??= {};
-        resolvedRound[hostUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[hostUid];
-
-        resolvedRound[guestUid] ??= {};
-        resolvedRound[guestUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[guestUid];
-
-        if (winnerUid.length === 0) {
-          resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[hostUid]);
-          resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[guestUid]);
-        } else {
-          resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-          resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-
-          resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
-            handsOf[hostUid],
-            winnerUid,
-            hostUid,
-          );
-          resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
-            handsOf[guestUid],
-            winnerUid,
-            guestUid,
-          );
-        }
-
-        return room;
-      });
-      if (!result.committed) {
-        throw new HttpsError("failed-precondition", "Phase updating failed.");
-      }
-      if (!result.snapshot.exists()) {
-        throw new HttpsError("failed-precondition", "Private room not found. (after transaction)");
-      }
-
-      const finalRoom = result.snapshot.val();
-      const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
-      const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
-      const finalHost = finalRoom[PRIVATE_ROOM_KEYS.HOST];
-      const finalGuest = finalRoom[PRIVATE_ROOM_KEYS.GUEST];
-      if (!finalHost || !finalGuest || !finalGame) {
-        throw new HttpsError("failed-precondition", "Private room data is incomplete.");
-      }
-      if (finalState !== ROOM_STATES.PLAYING) {
-        throw new HttpsError("failed-precondition", "Private room is not playing.");
-      }
-
-      const finalPlayer =
-        finalHost[GENERAL_ROOM_KEYS.UID] === uid
-          ? finalHost
-          : finalGuest[GENERAL_ROOM_KEYS.UID] === uid
-            ? finalGuest
-            : null;
-      if (finalPlayer === null) {
-        throw new HttpsError("permission-denied", "User is not a player.");
-      }
-      if (finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber) {
-        throw new HttpsError("failed-precondition", "Request is not latest round.");
-      }
-      if (
-        finalGame[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING &&
-        finalGame[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED
-      ) {
-        throw new HttpsError("failed-precondition", "Invalid game phase.");
-      }
+    if (!bothSubmitted) {
+      return {hasSucceeded: true};
     }
+
+    const result = await roomRef.transaction((room) => {
+      if (
+        room === null ||
+        room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING ||
+        typeof room[PRIVATE_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.UID] !== "string" ||
+        typeof room[PRIVATE_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.UID] !== "string"
+      ) {
+        return room;
+      }
+
+      const game = room[GENERAL_ROOM_KEYS.GAME];
+      if (
+        game?.[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
+        game?.[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
+      ) {
+        return room;
+      }
+
+      game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.RESOLVED;
+
+      game[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
+      const resolvedRound = game[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+      resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] = roundNumber;
+      resolvedRound[GENERAL_ROOM_KEYS.WINNER_UID] = winnerUid;
+      resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
+      resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
+
+      resolvedRound[hostUid] ??= {};
+      resolvedRound[hostUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[hostUid];
+
+      resolvedRound[guestUid] ??= {};
+      resolvedRound[guestUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[guestUid];
+
+      if (!winnerUid) {
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[hostUid]);
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[guestUid]);
+      } else {
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
+          handsOf[hostUid],
+          winnerUid,
+          hostUid,
+        );
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
+          handsOf[guestUid],
+          winnerUid,
+          guestUid,
+        );
+      }
+
+      return room;
+    });
+    if (!result.committed) {
+      throw new HttpsError("failed-precondition", "Phase updating failed.");
+    }
+    if (!result.snapshot.exists()) {
+      throw new HttpsError("failed-precondition", "Private room not found. (after transaction)");
+    }
+
+    const finalRoom = result.snapshot.val();
+    const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
+    const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
+    const finalHost = finalRoom[PRIVATE_ROOM_KEYS.HOST];
+    const finalGuest = finalRoom[PRIVATE_ROOM_KEYS.GUEST];
+    if (!finalHost || !finalGuest || !finalGame) {
+      throw new HttpsError("failed-precondition", "Private room data is incomplete.");
+    }
+    if (finalState !== ROOM_STATES.PLAYING) {
+      throw new HttpsError("failed-precondition", "Private room is not playing.");
+    }
+
+    const finalPlayer =
+      finalHost[GENERAL_ROOM_KEYS.UID] === uid
+        ? finalHost
+        : finalGuest[GENERAL_ROOM_KEYS.UID] === uid
+          ? finalGuest
+          : null;
+    if (finalPlayer === null) {
+      throw new HttpsError("permission-denied", "User is not a player.");
+    }
+    if (finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber) {
+      throw new HttpsError("failed-precondition", "Request is not latest round.");
+    }
+    if (finalGame[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED) {
+      throw new HttpsError("failed-precondition", "Failed to move to resolved phase.");
+    }
+
+    const nextPhaseAt =
+      finalGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND]?.[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
+
+    if (typeof nextPhaseAt !== "number") {
+      throw new HttpsError("internal", "Resolved phase deadline is missing.");
+    }
+
+    await enqueueFinishResolvedPhase(
+      roomId,
+      nextPhaseAt,
+      finalHost[GENERAL_ROOM_KEYS.UID],
+      finalGuest[GENERAL_ROOM_KEYS.UID],
+    );
 
     return {hasSucceeded: true};
   },

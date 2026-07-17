@@ -33,7 +33,8 @@ import type {
 } from "@tame5kosengame/shared";
 import {findNextPhaseAt} from "../inBattle/timestampGenerator";
 import {FinishIntroPhaseTask} from "../contracts";
-import {buildTaskPath} from "../forCloudTasks";
+import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
+import {ALGORITHM_NAME as ENCRYPTION_ALGORITHM_NAME} from "../config";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
 const MAX_JOIN_CODE_GENERATION_ATTEMPTS = 10;
@@ -51,7 +52,7 @@ function hashJoinCode(joinCode: string) {
     throw new HttpsError("failed-precondition", `${JOIN_CODE_SECRET_KEY} is not configured.`);
   }
 
-  return createHmac("sha256", secret).update(joinCode).digest("hex");
+  return createHmac(ENCRYPTION_ALGORITHM_NAME, secret).update(joinCode).digest("hex");
 }
 
 async function reserveJoinCode(internalRoomId: string) {
@@ -364,16 +365,9 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
 );
 
 function makeFinishIntroTaskId(roomId: string, nextPhaseAt: number): string {
-  return createHash("sha256").update(`finish-intro:${roomId}:${nextPhaseAt}`).digest("hex");
-}
-
-function isTaskAlreadyExists(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "functions/task-already-exists"
-  );
+  return createHash(ENCRYPTION_ALGORITHM_NAME)
+    .update(`finish-intro:${roomId}:${nextPhaseAt}`)
+    .digest("hex");
 }
 
 async function enqueueFinishIntroPhase(roomId: string, nextPhaseAt: number): Promise<void> {
@@ -394,7 +388,7 @@ async function enqueueFinishIntroPhase(roomId: string, nextPhaseAt: number): Pro
     );
   } catch (error) {
     // 通信再試行などで同じタスクを再登録した場合は成功扱い
-    if (isTaskAlreadyExists(error)) {
+    if (isTaskAlreadyAdded(error)) {
       return;
     }
 

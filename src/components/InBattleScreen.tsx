@@ -236,7 +236,7 @@ export function useScheduledHandSubmission({
 
     const trySubmit = async () => {
       if (disposed) {
-        console.log("手の提出処理が始まったので古い予約は無効化されたのだ");
+        // console.log("手の提出処理が始まったので古い予約は無効化されたのだ");
         return;
       }
 
@@ -246,13 +246,13 @@ export function useScheduledHandSubmission({
       setRemainingMs(nextRemainingMs);
 
       if (submittedRoundRef.current === roundNumber) {
-        console.log("このラウンドはもう手を提出済みなのだ");
+        // console.log("このラウンドはもう手を提出済みなのだ");
         return;
       }
 
       const scheduleNext = (delayMs: number) => {
         if (timeoutId !== undefined) {
-          console.log("二重タイマー防止のため古い予約を消したのだ");
+          // console.log("二重タイマー防止のため古い予約を消したのだ");
           window.clearTimeout(timeoutId);
         }
 
@@ -260,13 +260,13 @@ export function useScheduledHandSubmission({
       };
 
       if (nextRemainingMs > 0) {
-        console.log("まだ提出時刻が来てないので実行を予約するのだ");
+        // console.log("まだ提出時刻が来てないので実行を予約するのだ");
         scheduleNext(Math.min(nextRemainingMs, HAND_SUBMISSION_RETRY_INTERVAL_MS));
         return;
       }
 
       if (isSubmittingRef.current) {
-        console.log("手の提出処理中なのだ");
+        // console.log("手の提出処理中なのだ");
         return;
       }
 
@@ -279,7 +279,7 @@ export function useScheduledHandSubmission({
         console.error("手の提出に失敗しました。", error);
 
         if (disposed) {
-          console.log("手の提出処理が始まったので古い予約は無効化されたのだ（catchブロック）");
+          // console.log("手の提出処理が始まったので古い予約は無効化されたのだ（catchブロック）");
           return;
         }
 
@@ -287,13 +287,13 @@ export function useScheduledHandSubmission({
         const remainingUntilDeadlineMs = deadline - now();
 
         if (remainingUntilDeadlineMs <= MINIMUM_REQUEST_MARGIN_MS) {
-          console.error("手の提出期限が迫っているため、再試行を終了します。");
+          // console.error("手の提出期限が迫っているため、再試行を終了します。");
           return;
         }
 
         const retryDelayMs = Math.min(HAND_SUBMISSION_RETRY_INTERVAL_MS, remainingUntilDeadlineMs);
 
-        console.log(`${retryDelayMs}ms後に手の提出を再試行します。`);
+        // console.log(`${retryDelayMs}ms後に手の提出を再試行します。`);
 
         scheduleNext(retryDelayMs);
       } finally {
@@ -301,11 +301,11 @@ export function useScheduledHandSubmission({
       }
     };
 
-    // void trySubmit();
+    void trySubmit();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        // void trySubmit();
+        void trySubmit();
       }
     };
 

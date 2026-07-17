@@ -9,6 +9,7 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly SCORE: "score";
     readonly MANA: "mana";
     readonly HAS_FINISHED_INTERLUDE: "hasFinishedInterlude";
+    readonly FINAL_WINNER_UID: "finalWinnerUid";
     readonly GAME: "game";
     readonly PHASE: "phase";
     readonly HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline";
