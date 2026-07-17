@@ -1,6 +1,7 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {ServerValue} from "firebase-admin/database";
-import {randomInt, createHmac} from "crypto";
+import {getFunctions} from "firebase-admin/functions";
+import {createHash, createHmac, randomInt} from "crypto";
 
 import {db} from "../firebaseAdmin";
 
@@ -31,6 +32,8 @@ import type {
   MarkAsReadyResponse,
 } from "@tame5kosengame/shared";
 import {findNextPhaseAt} from "../inBattle/timestampGenerator";
+import {FinishIntroPhaseTask} from "../contracts";
+import {buildTaskPath} from "../forCloudTasks";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
 const MAX_JOIN_CODE_GENERATION_ATTEMPTS = 10;
@@ -360,6 +363,45 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
   },
 );
 
+function makeFinishIntroTaskId(roomId: string, nextPhaseAt: number): string {
+  return createHash("sha256").update(`finish-intro:${roomId}:${nextPhaseAt}`).digest("hex");
+}
+
+function isTaskAlreadyExists(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "functions/task-already-exists"
+  );
+}
+
+async function enqueueFinishIntroPhase(roomId: string, nextPhaseAt: number): Promise<void> {
+  const queue = getFunctions().taskQueue(buildTaskPath("finishIntroPhase"));
+
+  try {
+    await queue.enqueue(
+      {
+        roomId,
+        nextPhaseAt,
+      } satisfies FinishIntroPhaseTask,
+      {
+        scheduleTime: new Date(nextPhaseAt),
+
+        // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
+        id: makeFinishIntroTaskId(roomId, nextPhaseAt),
+      },
+    );
+  } catch (error) {
+    // 通信再試行などで同じタスクを再登録した場合は成功扱い
+    if (isTaskAlreadyExists(error)) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
 export const markAsReady = onCall<MarkAsReadyRequest>(
   async (request): Promise<MarkAsReadyResponse> => {
     if (!request.auth) {
@@ -391,51 +433,73 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
       if (room === null) {
         return room;
       }
+
+      const host = room[PRIVATE_ROOM_KEYS.HOST];
+      const guest = room[PRIVATE_ROOM_KEYS.GUEST];
+      const game = room[GENERAL_ROOM_KEYS.GAME];
+
+      const currentPlayerIsReady =
+        (hostUid === uid && host?.[PRIVATE_ROOM_KEYS.READY] === true) ||
+        (guestUid === uid && guest?.[PRIVATE_ROOM_KEYS.READY] === true);
+
+      /*
+       * 前回の呼び出しでDB更新には成功したものの、
+       * Cloud Tasksへの登録に失敗した場合の再試行を許可する。
+       */
+      if (
+        room[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.PLAYING &&
+        game?.[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.INTRO &&
+        currentPlayerIsReady
+      ) {
+        return room;
+      }
+
       if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PREPARING) {
         return undefined;
       }
-      // 過去のリクエストで既に準備完了書き込みが成功している場合は更新せずすぐ終了
-      if (hostUid === uid && room[PRIVATE_ROOM_KEYS.HOST]?.[PRIVATE_ROOM_KEYS.READY] === true) {
-        return room;
-      }
-      if (guestUid === uid && room[PRIVATE_ROOM_KEYS.GUEST]?.[PRIVATE_ROOM_KEYS.READY] === true) {
+
+      // 同じプレイヤーからの重複した準備完了はそのまま返す
+      if (currentPlayerIsReady) {
         return room;
       }
 
       if (hostUid === uid) {
-        room[PRIVATE_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] = true;
+        host[PRIVATE_ROOM_KEYS.READY] = true;
       } else if (guestUid === uid) {
-        room[PRIVATE_ROOM_KEYS.GUEST][PRIVATE_ROOM_KEYS.READY] = true;
+        guest[PRIVATE_ROOM_KEYS.READY] = true;
       } else {
         return undefined;
       }
 
-      if (
-        room[PRIVATE_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] === true &&
-        room[PRIVATE_ROOM_KEYS.GUEST][PRIVATE_ROOM_KEYS.READY] === true
-      ) {
-        room[GENERAL_ROOM_KEYS.STATE] = ROOM_STATES.PLAYING;
+      const bothReady =
+        host[PRIVATE_ROOM_KEYS.READY] === true && guest[PRIVATE_ROOM_KEYS.READY] === true;
 
-        room[GENERAL_ROOM_KEYS.GAME] ??= {};
-        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.INTRO;
-        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.ROUND_NUMBER] =
-          INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER;
-
-        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
-        const resolvedRound = room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND];
-
-        resolvedRound[hostUid] ??= {};
-        resolvedRound[guestUid] ??= {};
-
-        resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-        resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
-
-        resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-        resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
-
-        resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
-        resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
+      if (!bothReady) {
+        return room;
       }
+
+      room[GENERAL_ROOM_KEYS.STATE] = ROOM_STATES.PLAYING;
+
+      room[GENERAL_ROOM_KEYS.GAME] ??= {};
+      const nextGame = room[GENERAL_ROOM_KEYS.GAME];
+
+      nextGame[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.INTRO;
+      nextGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] = INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER;
+
+      nextGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
+      const resolvedRound = nextGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+
+      resolvedRound[hostUid] ??= {};
+      resolvedRound[guestUid] ??= {};
+
+      resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+      resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+
+      resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+      resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+
+      resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
+      resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
 
       return room;
     });
@@ -457,6 +521,26 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
           : null;
     if (finalPlayer?.[PRIVATE_ROOM_KEYS.READY] !== true) {
       throw new HttpsError("failed-precondition", "Player was not marked as ready.");
+    }
+
+    const bothReady =
+      finalHost?.[PRIVATE_ROOM_KEYS.READY] === true &&
+      finalGuest?.[PRIVATE_ROOM_KEYS.READY] === true;
+    const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
+
+    if (
+      bothReady &&
+      finalRoom[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.PLAYING &&
+      finalGame?.[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.INTRO
+    ) {
+      const nextPhaseAt =
+        finalGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND]?.[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
+
+      if (typeof nextPhaseAt !== "number") {
+        throw new HttpsError("internal", "Intro phase deadline is missing.");
+      }
+
+      await enqueueFinishIntroPhase(roomId, nextPhaseAt);
     }
 
     return {

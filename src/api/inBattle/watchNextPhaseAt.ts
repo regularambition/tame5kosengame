@@ -15,7 +15,7 @@ export function watchNextPhaseAt(
   );
 
   return onValue(nextPhaseAtRef, (snapshot) => {
-    if (snapshot.val() !== null) {
+    if (typeof snapshot.val() === "number") {
       onChange(snapshot.val());
     }
   });

@@ -1,9 +1,7 @@
 import {DURATION_IN_MILLI_SEC} from "@tame5kosengame/shared";
 
 export function findNextPhaseAt() {
-  return (
-    Date.now() + DURATION_IN_MILLI_SEC.INTERLUDE_DISPLAY + DURATION_IN_MILLI_SEC.INTERLUDE_BUFFER
-  );
+  return Date.now() + DURATION_IN_MILLI_SEC.INTERLUDE_DISPLAY;
 }
 
 export function findHandSubmissionDeadline(thinkingTimeInSec: number) {

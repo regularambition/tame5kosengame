@@ -27,7 +27,6 @@ import {CenterAligningDiv} from "./ui/CenterAligningDiv";
 import {ResignButton} from "./ui/ResignButton";
 import {IconButton} from "./ui/IconButton";
 import {ButtonRow} from "./ui/ButtonRow";
-import {initializeAfterIntro} from "../api/inBattle/initializeAfterIntro";
 import {watchGamePhase} from "../api/inBattle/watchGamePhase";
 import {useServerClock} from "../contexts/ServerClockContext";
 import {watchHandSubmissionDeadline} from "../api/inBattle/watchHandSubmissionDeadline";
@@ -90,56 +89,73 @@ function SpectatorUiDiv({}: SpectatorUiDivProps) {
   );
 }
 
+function toRemainingTimeInSec(remainingMs: number): number {
+  const res = Math.ceil(remainingMs * 0.001);
+  return res;
+}
+
 type IntroPhaseDivProps = {matchInfo: MatchInfo};
 function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
   const {matchPoint, thinkingTimeInSec} = matchInfo;
   const {isReady, now} = useServerClock();
 
-  const [startAt, setStartAt] = useState<number | null>(null);
-  const timeoutIdRef = useRef<number | null>(null);
+  const [remainingTimeInSec, setRemainingTimeInSec] = useState<number | null>(null);
+  const [nextPhaseAt, setNextPhaseAt] = useState<number | null>(null);
 
   useEffect(() => {
-    const unsubscribe = watchNextPhaseAt(
-      matchInfo.roomId,
-      (nextPhaseAt: number) => {
-        setStartAt(nextPhaseAt);
-      },
-      true,
-    );
-    return unsubscribe;
-  }, []);
+    return watchNextPhaseAt(matchInfo.roomId, setNextPhaseAt, true);
+  }, [matchInfo.roomId]);
+
+  // useEffect(() => {
+  //   const updateRemainingTime = async () => {
+  //     if (!isReady || nextPhaseAt === null) {
+  //       return;
+  //     }
+
+  //     const remainingMs = Math.max(0, nextPhaseAt - now());
+  //     setRemainingTimeInSec(toRemainingTimeInSec(remainingMs));
+
+  //     if (remainingMs > 0) {
+  //       window.setTimeout(updateRemainingTime, Math.min(remainingMs, 1000));
+  //     }
+  //   };
+
+  //   updateRemainingTime();
+  // }, [isReady, nextPhaseAt, now]);
 
   useEffect(() => {
-    if (!isReady || startAt === null) {
+    if (!isReady || nextPhaseAt === null) {
+      setRemainingTimeInSec(null);
       return;
     }
 
-    const transitionTime = startAt - DURATION_IN_MILLI_SEC.INTERLUDE_BUFFER;
-    const remainingMs = transitionTime - now();
+    let timeoutId: number | undefined;
+    let disposed = false;
 
-    const tryInitialize = async () => {
-      try {
-        if (!isValidPushId(matchInfo.roomId)) {
-          throw new Error();
-        }
-        await initializeAfterIntro(matchInfo.roomId);
-      } catch (error) {
-        console.log(`error = ${error}`);
-        console.log("初期化失敗");
+    const updateRemainingTime = () => {
+      if (disposed) {
         return;
       }
 
-      if (timeoutIdRef.current !== null) {
-        window.clearTimeout(timeoutIdRef.current);
+      const remainingMs = Math.max(0, nextPhaseAt - now());
+
+      setRemainingTimeInSec(toRemainingTimeInSec(remainingMs));
+
+      if (remainingMs > 0) {
+        timeoutId = window.setTimeout(updateRemainingTime, Math.min(remainingMs, 1000));
       }
     };
 
-    if (remainingMs > 0) {
-      timeoutIdRef.current = window.setTimeout(tryInitialize, remainingMs);
-    } else {
-      tryInitialize;
-    }
-  }, [startAt]);
+    updateRemainingTime();
+
+    return () => {
+      disposed = true;
+
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isReady, nextPhaseAt, now]);
 
   return (
     <MainDiv>
@@ -151,6 +167,8 @@ function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
         毎ターンの思考時間は{thinkingTimeInSec}秒
         <br />
       </p>
+      {remainingTimeInSec === null && <p>開始までの時間を取得中</p>}
+      {remainingTimeInSec !== null && <p>{remainingTimeInSec}秒後にゲーム開始</p>}
     </MainDiv>
   );
 }
@@ -283,11 +301,11 @@ export function useScheduledHandSubmission({
       }
     };
 
-    void trySubmit();
+    // void trySubmit();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void trySubmit();
+        // void trySubmit();
       }
     };
 
@@ -343,7 +361,7 @@ function SelectingPhaseDiv({matchInfo, roundNumber, onFinishSubmission}: Selecti
   };
 
   const remainingMs = useScheduledHandSubmission(args);
-  const remainingSeconds = remainingMs === null ? null : Math.ceil(remainingMs / 1_000);
+  const remainingSeconds = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
 
   return (
     <MainDiv>
