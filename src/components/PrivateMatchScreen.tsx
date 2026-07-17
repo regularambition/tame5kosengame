@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useRef} from "react";
 
 import {Button} from "./ui/Button";
 import {ButtonRow} from "./ui/ButtonRow";
@@ -27,6 +27,7 @@ import {
 } from "@tame5kosengame/shared";
 
 import {MatchInfo} from "../App";
+import {getTimeGapInMilliSec, retryCount} from "../retryUtility/forRetry";
 
 type PrivateMatchScreenProps = {
   gameSettings: GameSettings;
@@ -298,6 +299,9 @@ export function PrivateMatchScreen({
   const [guestName, setGuestName] = useState<string>("");
   const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
 
+  const remainingRetryRef = useRef<number>(retryCount);
+  const timeoutIdRef = useRef<number | null>(null);
+
   function buildMatchInfo(): MatchInfo {
     let p1Name = "";
     let p2Name = "";
@@ -325,6 +329,15 @@ export function PrivateMatchScreen({
       thinkingTimeInSec: parseInt(thinkingTime),
     };
   }
+
+  useEffect(() => {
+    return () => {
+      if (timeoutIdRef.current !== null) {
+        window.clearTimeout(timeoutIdRef.current);
+        timeoutIdRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const watchPrivateRoomStateArg = (st: RoomState) => {
@@ -376,7 +389,6 @@ export function PrivateMatchScreen({
 
     const watchPrivateRoomStateArg = (st: RoomState) => {
       if (st === ROOM_STATES.PLAYING) {
-        // alert("ゲームが始まります！");
         onStartBattle(buildMatchInfo());
       }
     };
@@ -514,10 +526,27 @@ export function PrivateMatchScreen({
 
     try {
       await markAsReady(roomId);
-    } catch {
-      setIsReadyToFight(false);
-      setErrorMessage("準備完了通知に失敗しました");
+    } catch (e) {
+      --remainingRetryRef.current;
+      console.log(`e = ${e}`);
+      if (remainingRetryRef.current === 0) {
+        setIsReadyToFight(false);
+        setErrorMessage("準備完了通知に失敗しました");
+      } else {
+        const timeGap = getTimeGapInMilliSec();
+        if (timeoutIdRef.current !== null) {
+          window.clearTimeout(timeoutIdRef.current);
+        }
+        timeoutIdRef.current = window.setTimeout(handleFinishPreparing, timeGap);
+        return;
+      }
     }
+
+    if (timeoutIdRef.current !== null) {
+      window.clearTimeout(timeoutIdRef.current);
+    }
+    timeoutIdRef.current = null;
+    remainingRetryRef.current = retryCount;
   };
 
   return (

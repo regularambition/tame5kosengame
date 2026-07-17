@@ -3,10 +3,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {db} from "../firebaseAdmin";
 
 import {
-  // isValidMatchPoint,
-  // isValidThinkingTime,
   isValidPushId,
-  // ROOM_STATES,
   DATABASE_PATHS_FOR_ROOMS,
   GAME_PHASES,
   GENERAL_ROOM_KEYS,
@@ -19,6 +16,7 @@ import type {
   InitializeAfterIntroResponse,
 } from "@tame5kosengame/shared";
 import {findHandSubmissionDeadline} from "./timestampGenerator";
+import {ServerValue} from "firebase-admin/database";
 
 export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
   async (request): Promise<InitializeAfterIntroResponse> => {
@@ -75,8 +73,6 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
       const currentPlayer = iAmHost ? room[PRIVATE_ROOM_KEYS.HOST] : room[PRIVATE_ROOM_KEYS.GUEST];
       // 同じプレイヤーから再度呼ばれても再初期化しない
       if (currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTERLUDE] !== true) {
-        currentPlayer[GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
-        currentPlayer[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
         currentPlayer[GENERAL_ROOM_KEYS.HAS_FINISHED_INTERLUDE] = true;
       }
 
@@ -96,7 +92,20 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
           findHandSubmissionDeadline(thinkingTimeInSec);
         room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.ROUND_NUMBER] =
           INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER;
-        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND] = null;
+
+        const resolvedRound = room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] = INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER - 1;
+
+        resolvedRound[hostUid] ??= {};
+        resolvedRound[guestUid] ??= {};
+
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+
+        resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
       }
 
       return room;
@@ -105,7 +114,7 @@ export const initializeAfterIntro = onCall<InitializeAfterIntroRequest>(
       throw new HttpsError("failed-precondition", "Initialization failed.");
     }
     if (!result.snapshot.exists()) {
-      throw new HttpsError("failed-precondition", "Private room not found.");
+      throw new HttpsError("failed-precondition", "Private room not found. (final)");
     }
 
     const finalRoom = result.snapshot.val();

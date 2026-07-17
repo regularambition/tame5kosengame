@@ -17,6 +17,7 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly ROUND_NUMBER: "roundNumber";
     readonly HANDS_OF: "handsOf";
     readonly RESOLVED_ROUND: "resolvedRound";
+    readonly SELECTED_HAND: "selectedHand";
     readonly WINNER_UID: "winnerUid";
     readonly RESOLVED_AT: "resolvedAt";
     readonly NEXT_PHASE_AT: "nextPhaseAt";

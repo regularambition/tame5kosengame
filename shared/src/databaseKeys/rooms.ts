@@ -19,6 +19,7 @@ export const GENERAL_ROOM_KEYS = {
   ROUND_NUMBER: "roundNumber",
   HANDS_OF: "handsOf",
   RESOLVED_ROUND: "resolvedRound",
+  SELECTED_HAND: "selectedHand",
   WINNER_UID: "winnerUid",
   RESOLVED_AT: "resolvedAt",
   NEXT_PHASE_AT: "nextPhaseAt",

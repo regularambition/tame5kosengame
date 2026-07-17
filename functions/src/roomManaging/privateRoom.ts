@@ -16,6 +16,7 @@ import {
   PRIVATE_ROOM_JOIN_CODE_KEYS,
   PRIVATE_ROOM_KEYS,
   GAME_PHASES,
+  INITIAL_VALUES_IN_BATTLE,
 } from "@tame5kosengame/shared";
 import type {
   CreatePrivateRoomRequest,
@@ -120,9 +121,6 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
           },
           [PRIVATE_ROOM_KEYS.JOIN_CODE_HASH]: joinCodeHash,
           [GENERAL_ROOM_KEYS.STATE]: ROOM_STATES.PREPARING,
-          [GENERAL_ROOM_KEYS.GAME]: {
-            [GENERAL_ROOM_KEYS.PHASE]: GAME_PHASES.INTRO,
-          },
         },
         [DATABASE_PATHS_FOR_ROOMS.privateRoomJoinCodeRoomId(joinCodeHash)]: internalRoomId,
       });
@@ -380,27 +378,34 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    let retryCount = 10;
-    let succeeded = false;
+    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
+    const guestUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val();
+    if (typeof hostUid !== "string" || typeof guestUid !== "string") {
+      throw new HttpsError("internal", "Incomplete database.");
+    }
+    if (uid !== hostUid && uid !== guestUid) {
+      throw new HttpsError("failed-precondition", "Invalid user.");
+    }
+
     const result = await roomRef.transaction((room) => {
       if (room === null) {
-        if (retryCount > 0) {
-          --retryCount;
-          return room;
-        } else {
-          return undefined;
-        }
+        return room;
       }
       if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PREPARING) {
         return undefined;
       }
+      // 過去のリクエストで既に準備完了書き込みが成功している場合は更新せずすぐ終了
+      if (hostUid === uid && room[PRIVATE_ROOM_KEYS.HOST]?.[PRIVATE_ROOM_KEYS.READY] === true) {
+        return room;
+      }
+      if (guestUid === uid && room[PRIVATE_ROOM_KEYS.GUEST]?.[PRIVATE_ROOM_KEYS.READY] === true) {
+        return room;
+      }
 
-      if (room[PRIVATE_ROOM_KEYS.HOST][GENERAL_ROOM_KEYS.UID] === uid) {
+      if (hostUid === uid) {
         room[PRIVATE_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] = true;
-        succeeded = true;
-      } else if (room[PRIVATE_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.UID] === uid) {
+      } else if (guestUid === uid) {
         room[PRIVATE_ROOM_KEYS.GUEST][PRIVATE_ROOM_KEYS.READY] = true;
-        succeeded = true;
       } else {
         return undefined;
       }
@@ -412,16 +417,46 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
         room[GENERAL_ROOM_KEYS.STATE] = ROOM_STATES.PLAYING;
 
         room[GENERAL_ROOM_KEYS.GAME] ??= {};
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.INTRO;
+        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.ROUND_NUMBER] =
+          INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER;
+
         room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
-        room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND][
-          GENERAL_ROOM_KEYS.NEXT_PHASE_AT
-        ] = findNextPhaseAt();
+        const resolvedRound = room[GENERAL_ROOM_KEYS.GAME][GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+
+        resolvedRound[hostUid] ??= {};
+        resolvedRound[guestUid] ??= {};
+
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+
+        resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
+        resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
       }
 
       return room;
     });
-    if (!result.committed || !succeeded) {
+    if (!result.committed) {
       throw new HttpsError("failed-precondition", "Cannot mark as ready.");
+    }
+    if (!result.snapshot.exists()) {
+      throw new HttpsError("not-found", "Private room not found after transaction.");
+    }
+
+    const finalRoom = result.snapshot.val();
+    const finalHost = finalRoom[PRIVATE_ROOM_KEYS.HOST];
+    const finalGuest = finalRoom[PRIVATE_ROOM_KEYS.GUEST];
+    const finalPlayer =
+      finalHost?.[GENERAL_ROOM_KEYS.UID] === uid
+        ? finalHost
+        : finalGuest?.[GENERAL_ROOM_KEYS.UID] === uid
+          ? finalGuest
+          : null;
+    if (finalPlayer?.[PRIVATE_ROOM_KEYS.READY] !== true) {
+      throw new HttpsError("failed-precondition", "Player was not marked as ready.");
     }
 
     return {

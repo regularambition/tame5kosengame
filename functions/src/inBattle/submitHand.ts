@@ -10,8 +10,73 @@ import {
   PRIVATE_ROOM_KEYS,
   ROOM_STATES,
   isValidHand,
+  HAND_IDS,
+  INITIAL_VALUES_IN_BATTLE,
 } from "@tame5kosengame/shared";
-import type {SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
+import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
+import {ServerValue} from "firebase-admin/database";
+import {findNextPhaseAt} from "./timestampGenerator";
+
+function findManaGain(hand: HandId): number {
+  if (hand === HAND_IDS.CHARGE) {
+    return 1;
+  } else if (hand === HAND_IDS.ATTACK) {
+    return -1;
+  } else if (hand === HAND_IDS.BEAM) {
+    return -5;
+  } else {
+    return 0;
+  }
+}
+
+type UidHandPair = {
+  uid: string;
+  hand: HandId;
+};
+
+function findWinnerUid(uhp1: UidHandPair, uhp2: UidHandPair): string {
+  const {uid: uid1, hand: hand1} = uhp1;
+  const {uid: uid2, hand: hand2} = uhp2;
+
+  if (hand1 === hand2) {
+    return "";
+  }
+
+  let res = "";
+  if (hand1 === HAND_IDS.CHARGE) {
+    if (hand2 === HAND_IDS.ATTACK || hand2 === HAND_IDS.BEAM) {
+      res = uid2;
+    }
+  } else if (hand1 === HAND_IDS.DEFENSE) {
+    if (hand2 === HAND_IDS.BEAM) {
+      res = uid2;
+    }
+  } else if (hand1 === HAND_IDS.ATTACK) {
+    if (hand2 === HAND_IDS.CHARGE) {
+      res = uid1;
+    } else if (hand2 === HAND_IDS.BEAM) {
+      res = uid2;
+    }
+  } else {
+    res = uid1;
+  }
+
+  return res;
+}
+
+function findScoreGain(winnersHand: HandId, winnerUid: string, uid: string) {
+  if (uid !== winnerUid) {
+    return 0;
+  }
+
+  if (winnersHand === HAND_IDS.ATTACK) {
+    return 1;
+  } else if (winnersHand === HAND_IDS.BEAM) {
+    return 2;
+  } else {
+    return 0;
+  }
+}
 
 export const submitHand = onCall<SubmitHandRequest>(
   async (request): Promise<SubmitHandResponse> => {
@@ -47,6 +112,11 @@ export const submitHand = onCall<SubmitHandRequest>(
       throw new HttpsError("failed-precondition", "Invalid user.");
     }
 
+    // const actualMana = roomSnapshot
+    //   .child(uid === hostUid ? PRIVATE_ROOM_KEYS.HOST : PRIVATE_ROOM_KEYS.GUEST)
+    //   .child(GENERAL_ROOM_KEYS.MANA)
+    //   .val();
+
     const submissionRef = db.ref(
       DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHand(roomId, roundNumber),
     );
@@ -80,6 +150,11 @@ export const submitHand = onCall<SubmitHandRequest>(
     }
 
     const bothSubmitted = submittedPlayers[hostUid] === true && submittedPlayers[guestUid] === true;
+    const winnerUid = findWinnerUid(
+      {uid: hostUid, hand: handsOf[hostUid]},
+      {uid: guestUid, hand: handsOf[guestUid]},
+    );
+
     if (bothSubmitted) {
       const result = await roomRef.transaction((room) => {
         if (room === null || room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
@@ -95,13 +170,46 @@ export const submitHand = onCall<SubmitHandRequest>(
         }
 
         game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.RESOLVED;
+
+        game[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
+        const resolvedRound = game[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] = roundNumber;
+        resolvedRound[GENERAL_ROOM_KEYS.WINNER_UID] = winnerUid;
+        resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
+        resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
+
+        resolvedRound[hostUid] ??= {};
+        resolvedRound[hostUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[hostUid];
+
+        resolvedRound[guestUid] ??= {};
+        resolvedRound[guestUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[guestUid];
+
+        if (winnerUid.length === 0) {
+          resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[hostUid]);
+          resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[guestUid]);
+        } else {
+          resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+          resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+
+          resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
+            handsOf[hostUid],
+            winnerUid,
+            hostUid,
+          );
+          resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
+            handsOf[guestUid],
+            winnerUid,
+            guestUid,
+          );
+        }
+
         return room;
       });
       if (!result.committed) {
         throw new HttpsError("failed-precondition", "Phase updating failed.");
       }
       if (!result.snapshot.exists()) {
-        throw new HttpsError("failed-precondition", "Private room not found.");
+        throw new HttpsError("failed-precondition", "Private room not found. (after transaction)");
       }
 
       const finalRoom = result.snapshot.val();
