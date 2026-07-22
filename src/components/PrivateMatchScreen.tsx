@@ -28,6 +28,7 @@ import {
 
 import {MatchInfo} from "../App";
 import {getTimeGapInMilliSec, retryCount} from "../retryUtility/forRetry";
+import {ROLES_IN_BATTLE, RolesInBattleId} from "../constants/rolesInBattle";
 
 type PrivateMatchScreenProps = {
   gameSettings: GameSettings;
@@ -303,28 +304,19 @@ export function PrivateMatchScreen({
   const timeoutIdRef = useRef<number | null>(null);
 
   function buildMatchInfo(): MatchInfo {
-    let p1Name = "";
-    let p2Name = "";
-    let isHost = false;
+    let role: RolesInBattleId = ROLES_IN_BATTLE.HOST_OF_PRIVATE_MATCH;
     if (state === STATES.I_AM_HOST) {
-      p1Name = userName;
-      p2Name = guestName;
-      isHost = true;
     } else if (isPlayer) {
-      p1Name = userName;
-      p2Name = hostName;
+      role = ROLES_IN_BATTLE.GUEST_OF_PRIVATE_MATCH;
     } else {
-      p1Name = hostName;
-      p2Name = guestName;
+      role = ROLES_IN_BATTLE.SPECTATOR;
     }
 
     return {
       roomId: roomId,
-      isPrivateMatch: true,
-      isPlayer: isPlayer,
-      iAmHost: isHost,
-      player1Name: p1Name,
-      player2Name: p2Name,
+      role: role,
+      hostName: hostName,
+      guestName: guestName,
       matchPoint: parseInt(matchPoint),
       thinkingTimeInSec: parseInt(thinkingTime),
     };
@@ -345,6 +337,7 @@ export function PrivateMatchScreen({
         alert("部屋が削除されました");
         setRoomId("");
         setJoinCode("");
+        setHostName("");
         setGuestName("");
         setIsReadyToFight(false);
         setState(STATES.MAKE_OR_ENTER);
@@ -419,6 +412,7 @@ export function PrivateMatchScreen({
         return;
       }
       setRoomId("");
+      setHostName("");
       setGuestName("");
       setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
@@ -439,6 +433,7 @@ export function PrivateMatchScreen({
 
       setRoomId("");
       setHostName("");
+      setGuestName("");
       setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
     }
@@ -479,6 +474,7 @@ export function PrivateMatchScreen({
 
     setErrorMessage("");
     setState(STATES.I_AM_HOST);
+    setHostName(userName);
     setIsCreatingRoom(false);
   };
 
@@ -513,6 +509,9 @@ export function PrivateMatchScreen({
 
     setErrorMessage("");
     setState(STATES.I_AM_GUEST_OR_SPECTATOR);
+    if (isPlayer) {
+      setGuestName(userName);
+    }
     setIsEntering(false);
   };
 

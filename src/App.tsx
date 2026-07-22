@@ -17,6 +17,7 @@ import {PrivateMatchScreen} from "./components/PrivateMatchScreen";
 import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
 import {DEFAULT_MATCH_RULES} from "./types/MatchRules";
 import {InBattleScreen} from "./components/InBattleScreen";
+import {ROLES_IN_BATTLE, RolesInBattleId} from "./constants/rolesInBattle";
 
 function loadGameSettings(): GameSettings {
   const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
@@ -37,11 +38,9 @@ function loadGameSettings(): GameSettings {
 
 export type MatchInfo = {
   roomId: string;
-  isPrivateMatch: boolean;
-  isPlayer: boolean;
-  iAmHost: boolean;
-  player1Name: string;
-  player2Name: string;
+  role: RolesInBattleId;
+  hostName: string;
+  guestName: string;
   matchPoint: number;
   thinkingTimeInSec: number;
 };
@@ -58,11 +57,9 @@ function App() {
 
   const [matchInfo, setMatchInfo] = useState<MatchInfo>({
     roomId: "",
-    isPrivateMatch: false,
-    isPlayer: true,
-    iAmHost: false,
-    player1Name: userName,
-    player2Name: "",
+    role: ROLES_IN_BATTLE.HOST_OF_RANDOM_MATCH,
+    hostName: "",
+    guestName: "",
     matchPoint: DEFAULT_MATCH_RULES.matchPoint,
     thinkingTimeInSec: DEFAULT_MATCH_RULES.thinkingTimeInSec,
   });

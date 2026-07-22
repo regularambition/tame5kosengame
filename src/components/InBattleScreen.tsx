@@ -27,6 +27,7 @@ import {watchHandSubmissionDeadline} from "../api/inBattle/watchHandSubmissionDe
 import {submitHand} from "../api/inBattle/submitHand";
 import {watchNextPhaseAt} from "../api/inBattle/watchNextPhaseAt";
 import {watchCurrentRoundNumber} from "../api/inBattle/watchCurrentRoundNumber";
+import {isPlayer, isPrivateMatch, isSpectator} from "../constants/rolesInBattle";
 
 type MainDivProps = {
   children: ReactNode;
@@ -415,7 +416,7 @@ type FinishedPhaseDivProps = {
 };
 function FinishedPhaseDiv({matchInfo}: FinishedPhaseDivProps) {
   const findWinner = (matchInfo: MatchInfo) => {
-    if (matchInfo.isPlayer) {
+    if (isPlayer(matchInfo.role)) {
       return "YOU";
     } else {
       return "HOST";
@@ -426,8 +427,8 @@ function FinishedPhaseDiv({matchInfo}: FinishedPhaseDivProps) {
     <MainDiv isVerticalEven={true}>
       <p className="final-score">5 - 3</p>
       <p className="result-description">WINNER: {findWinner(matchInfo)}</p>
-      {matchInfo.isPrivateMatch && <Button>戻る</Button>}
-      {!matchInfo.isPrivateMatch && (
+      {isPrivateMatch(matchInfo.role) && <Button>戻る</Button>}
+      {!isPrivateMatch(matchInfo.role) && (
         <ButtonRow>
           <Button>再戦希望</Button>
           <Button>トップへ戻る</Button>
@@ -449,23 +450,12 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [guestScore, setGuestScore] = useState<number>(INITIAL_VALUES_IN_BATTLE.SCORE);
 
   function debug() {
-    const {
-      roomId,
-      isPrivateMatch,
-      isPlayer,
-      iAmHost,
-      player1Name,
-      player2Name,
-      matchPoint,
-      thinkingTimeInSec,
-    } = matchInfo;
+    const {roomId, role, hostName, guestName, matchPoint, thinkingTimeInSec} = matchInfo;
     console.log(`contents of matchInfo:`);
     console.log(`roomId = ${roomId}`);
-    console.log(`isPrivateMatch = ${isPrivateMatch}`);
-    console.log(`isPlayer = ${isPlayer}`);
-    console.log(`iAmHost = ${iAmHost}`);
-    console.log(`player1Name = ${player1Name}`);
-    console.log(`player2Name = ${player2Name}`);
+    console.log(`isPrivateMatch = ${role}`);
+    console.log(`hostName = ${hostName}`);
+    console.log(`guestName = ${guestName}`);
     console.log(`matchPoint = ${matchPoint}`);
     console.log(`thinkingTimeInSec = ${thinkingTimeInSec}`);
   }
@@ -492,10 +482,10 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
 
   return (
     <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
-      {matchInfo.isPrivateMatch && <SpectatorUiDiv></SpectatorUiDiv>}
+      {isPrivateMatch(matchInfo.role) && <SpectatorUiDiv></SpectatorUiDiv>}
       <ResignButton onClick={updateGamePhase}></ResignButton>
       <PlayerStatusDiv
-        userName={matchInfo.player2Name}
+        userName={matchInfo.guestName}
         className="panel-p2"
         isPlayer1={false}
       ></PlayerStatusDiv>
@@ -512,10 +502,10 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
       {gamePhase === GAME_PHASES.RESOLVED && <ResolvedPhaseDiv />}
       {gamePhase === GAME_PHASES.FINISHED && <FinishedPhaseDiv matchInfo={matchInfo} />}
       <PlayerStatusDiv
-        userName={matchInfo.player1Name}
+        userName={matchInfo.hostName}
         className="panel-p1"
         isPlayer1={true}
-        iAmPlayer={matchInfo.isPlayer}
+        iAmPlayer={isPlayer(matchInfo.role)}
       ></PlayerStatusDiv>
     </main>
   );
