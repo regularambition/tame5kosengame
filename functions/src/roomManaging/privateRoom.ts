@@ -113,7 +113,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
     try {
       await db.ref().update({
         [DATABASE_PATHS_FOR_ROOMS.privateRoom(internalRoomId)]: {
-          [PRIVATE_ROOM_KEYS.HOST]: {
+          [GENERAL_ROOM_KEYS.HOST]: {
             [GENERAL_ROOM_KEYS.UID]: hostUid,
             [GENERAL_ROOM_KEYS.NAME]: userName,
             [PRIVATE_ROOM_KEYS.READY]: false,
@@ -178,7 +178,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
+    const hostUid = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
     if (typeof hostUid !== "string") {
       throw new HttpsError("internal", "Invalid private room data.");
     }
@@ -186,7 +186,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("failed-precondition", "Host cannot act as guest.");
     }
 
-    const hostName = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.NAME).val();
+    const hostName = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.NAME).val();
     if (typeof hostName !== "string") {
       throw new HttpsError("internal", "Invalid private room data.");
     }
@@ -206,7 +206,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
     }
 
     if (isPlayer) {
-      const guestUidRef = roomRef.child(PRIVATE_ROOM_KEYS.GUEST);
+      const guestUidRef = roomRef.child(GENERAL_ROOM_KEYS.GUEST);
       const result = await guestUidRef.transaction((currentGuest) => {
         if (currentGuest !== null) {
           return undefined;
@@ -224,7 +224,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
 
       await roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid).remove();
     } else if (
-      roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
+      roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
     ) {
       throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
@@ -262,7 +262,7 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
+    const hostUid = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
     if (typeof hostUid !== "string") {
       throw new HttpsError("internal", "Invalid private room data.");
     }
@@ -286,7 +286,7 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           }
         }
 
-        const guest = currentRoom[PRIVATE_ROOM_KEYS.GUEST];
+        const guest = currentRoom[GENERAL_ROOM_KEYS.GUEST];
         if (guest === null || guest === undefined) {
           if (retryCount > 0) {
             --retryCount;
@@ -296,21 +296,21 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           }
         }
 
-        if (currentRoom[PRIVATE_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.UID] !== uid) {
+        if (currentRoom[GENERAL_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.UID] !== uid) {
           return undefined;
         }
 
         matchedGuestUid = true;
         const nextRoom = {...currentRoom};
-        nextRoom[PRIVATE_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] = false;
-        delete nextRoom[PRIVATE_ROOM_KEYS.GUEST];
+        nextRoom[GENERAL_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] = false;
+        delete nextRoom[GENERAL_ROOM_KEYS.GUEST];
         return nextRoom;
       });
       if (!result.committed || !matchedGuestUid) {
         throw new HttpsError("failed-precondition", "Cannot leave this room.");
       }
     } else if (
-      roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
+      roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
     ) {
       throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
@@ -342,7 +342,7 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
+    const hostUid = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
     if (hostUid !== uid) {
       throw new HttpsError("permission-denied", "Only host can delete this room.");
     }
@@ -414,8 +414,8 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
-    const guestUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val();
+    const hostUid = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
+    const guestUid = roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val();
     if (typeof hostUid !== "string" || typeof guestUid !== "string") {
       throw new HttpsError("internal", "Incomplete database.");
     }
@@ -428,8 +428,8 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
         return room;
       }
 
-      const host = room[PRIVATE_ROOM_KEYS.HOST];
-      const guest = room[PRIVATE_ROOM_KEYS.GUEST];
+      const host = room[GENERAL_ROOM_KEYS.HOST];
+      const guest = room[GENERAL_ROOM_KEYS.GUEST];
       const game = room[GENERAL_ROOM_KEYS.GAME];
 
       const currentPlayerIsReady =
@@ -459,8 +459,12 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
 
       if (hostUid === uid) {
         host[PRIVATE_ROOM_KEYS.READY] = true;
+        host[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        host[GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
       } else if (guestUid === uid) {
         guest[PRIVATE_ROOM_KEYS.READY] = true;
+        guest[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        guest[GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
       } else {
         return undefined;
       }
@@ -482,15 +486,15 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
 
       nextGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
       const resolvedRound = nextGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+      resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] = INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER - 1;
+      resolvedRound[GENERAL_ROOM_KEYS.HOST] ??= {};
+      resolvedRound[GENERAL_ROOM_KEYS.GUEST] ??= {};
 
-      resolvedRound[hostUid] ??= {};
-      resolvedRound[guestUid] ??= {};
+      resolvedRound[GENERAL_ROOM_KEYS.HOST][GENERAL_ROOM_KEYS.MANA_GAIN] = 0;
+      resolvedRound[GENERAL_ROOM_KEYS.HOST][GENERAL_ROOM_KEYS.SCORE_GAIN] = 0;
 
-      resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-      resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
-
-      resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-      resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
+      resolvedRound[GENERAL_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.MANA_GAIN] = 0;
+      resolvedRound[GENERAL_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.SCORE_GAIN] = 0;
 
       resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
       resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
@@ -505,8 +509,8 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
     }
 
     const finalRoom = result.snapshot.val();
-    const finalHost = finalRoom[PRIVATE_ROOM_KEYS.HOST];
-    const finalGuest = finalRoom[PRIVATE_ROOM_KEYS.GUEST];
+    const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
+    const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
     const finalPlayer =
       finalHost?.[GENERAL_ROOM_KEYS.UID] === uid
         ? finalHost

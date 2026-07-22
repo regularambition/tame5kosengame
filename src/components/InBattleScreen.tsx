@@ -7,13 +7,7 @@ import {Button} from "./ui/Button";
 import {HANDS} from "../constants/hands";
 
 import {
-  isValidJoinCode,
-  isValidMatchPoint,
-  isValidThinkingTime,
-  VALID_NUMBER_RANGE,
   isValidPushId,
-  RoomState,
-  ROOM_STATES,
   GamePhase,
   GAME_PHASES,
   DURATION_IN_MILLI_SEC,
@@ -32,6 +26,7 @@ import {useServerClock} from "../contexts/ServerClockContext";
 import {watchHandSubmissionDeadline} from "../api/inBattle/watchHandSubmissionDeadline";
 import {submitHand} from "../api/inBattle/submitHand";
 import {watchNextPhaseAt} from "../api/inBattle/watchNextPhaseAt";
+import {watchCurrentRoundNumber} from "../api/inBattle/watchCurrentRoundNumber";
 
 type MainDivProps = {
   children: ReactNode;
@@ -54,12 +49,16 @@ type PlayerStatusDivProps = {
   className?: string;
   isPlayer1: boolean;
   iAmPlayer?: boolean;
+  // score: number;
+  // mana: number;
 };
 function PlayerStatusDiv({
   userName,
   className = "",
   isPlayer1,
   iAmPlayer = true,
+  // score,
+  // mana,
 }: PlayerStatusDivProps) {
   return (
     <CenterAligningDiv>
@@ -287,7 +286,7 @@ export function useScheduledHandSubmission({
         const remainingUntilDeadlineMs = deadline - now();
 
         if (remainingUntilDeadlineMs <= MINIMUM_REQUEST_MARGIN_MS) {
-          // console.error("手の提出期限が迫っているため、再試行を終了します。");
+          console.error("手の提出期限が迫っているため、再試行を終了します。");
           return;
         }
 
@@ -444,6 +443,10 @@ type InBattleScreenProps = {
 export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
   const [roundNumber, setRoundNumber] = useState<number>(INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER);
+  const [hostMana, setHostMana] = useState<number>(INITIAL_VALUES_IN_BATTLE.MANA);
+  const [hostScore, setHostScore] = useState<number>(INITIAL_VALUES_IN_BATTLE.SCORE);
+  const [guestMana, setGuestMana] = useState<number>(INITIAL_VALUES_IN_BATTLE.MANA);
+  const [guestScore, setGuestScore] = useState<number>(INITIAL_VALUES_IN_BATTLE.SCORE);
 
   function debug() {
     const {
@@ -469,6 +472,10 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
 
   useEffect(() => {
     return watchGamePhase(matchInfo.roomId, setGamePhase, true);
+  }, [matchInfo.roomId]);
+
+  useEffect(() => {
+    return watchCurrentRoundNumber(matchInfo.roomId, setRoundNumber, true);
   }, [matchInfo.roomId]);
 
   function updateGamePhase() {

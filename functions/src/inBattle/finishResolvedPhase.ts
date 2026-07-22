@@ -5,7 +5,8 @@ import {
   DATABASE_PATHS_FOR_ROOMS,
   GAME_PHASES,
   GENERAL_ROOM_KEYS,
-  PRIVATE_ROOM_KEYS,
+  INITIAL_VALUES_IN_BATTLE,
+  WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 import {FinishResolvedPhaseTask} from "../contracts";
 import {findHandSubmissionDeadline} from "./timestampGenerator";
@@ -14,7 +15,7 @@ import {PHASE_TRANSITION_TASK_OPTIONS} from "../config";
 export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
   PHASE_TRANSITION_TASK_OPTIONS,
   async (request) => {
-    const {roomId, nextPhaseAt, hostUid, guestUid} = request.data;
+    const {roomId, nextPhaseAt, roundNumber} = request.data;
     const roomRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId));
     const roomSnapshot = await roomRef.get();
     if (!roomSnapshot.exists()) {
@@ -26,36 +27,29 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
         return room;
       }
 
+      const host = room[GENERAL_ROOM_KEYS.HOST];
+      const guest = room[GENERAL_ROOM_KEYS.GUEST];
       const game = room[GENERAL_ROOM_KEYS.GAME];
       const rules = room[GENERAL_ROOM_KEYS.RULES];
       const resolvedRound = game?.[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
-      if (!game || !rules || !resolvedRound) {
+
+      if (!host || !guest || !game || !rules || !resolvedRound) {
         return room;
       }
 
-      // 再試行時は成功扱いにしてCloud Tasksの再試行を止める
+      // すでに古いタスクなら何もしない
       if (
-        game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.SELECTING ||
-        game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.FINISHED
+        game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED ||
+        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
       ) {
-        return room;
-      }
-
-      // すでに別フェーズなら古いタスクなので何もしない
-      if (game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED) {
         return room;
       }
 
       const storedNextPhaseAt =
         game[GENERAL_ROOM_KEYS.RESOLVED_ROUND]?.[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
-      const storedHostUid = room[PRIVATE_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.UID];
-      const storedGuestUid = room[PRIVATE_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.UID];
+
       // 同じresolvedに対するタスクであることを確認
-      if (
-        storedNextPhaseAt !== nextPhaseAt ||
-        storedHostUid !== hostUid ||
-        storedGuestUid !== guestUid
-      ) {
+      if (storedNextPhaseAt !== nextPhaseAt) {
         return room;
       }
 
@@ -64,29 +58,62 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
         throw new HttpsError("failed-precondition", "Resolved phase has not reached its deadline.");
       }
 
+      const hostMana = host[GENERAL_ROOM_KEYS.MANA];
+      const hostScore = host[GENERAL_ROOM_KEYS.SCORE];
+      const guestMana = guest[GENERAL_ROOM_KEYS.MANA];
+      const guestScore = guest[GENERAL_ROOM_KEYS.SCORE];
       const thinkingTimeInSec = rules[GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC];
       const matchPoint = rules[GENERAL_ROOM_KEYS.MATCH_POINT];
-      const hostScore = resolvedRound?.[hostUid]?.[GENERAL_ROOM_KEYS.SCORE];
-      const guestScore = resolvedRound?.[guestUid]?.[GENERAL_ROOM_KEYS.SCORE];
-      const roundNumber = game[GENERAL_ROOM_KEYS.ROUND_NUMBER];
+      const hostManaGain = resolvedRound?.[GENERAL_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.MANA_GAIN];
+      const guestManaGain = resolvedRound?.[GENERAL_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.MANA_GAIN];
+      const hostScoreGain = resolvedRound?.[GENERAL_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.SCORE_GAIN];
+      const guestScoreGain =
+        resolvedRound?.[GENERAL_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.SCORE_GAIN];
+      const winnerOfRound = resolvedRound?.[GENERAL_ROOM_KEYS.WINNER_OF_ROUND];
+
       if (
+        typeof hostMana !== "number" ||
+        typeof hostScore !== "number" ||
+        typeof guestMana !== "number" ||
+        typeof guestScore !== "number" ||
         typeof thinkingTimeInSec !== "number" ||
         typeof matchPoint !== "number" ||
-        typeof hostScore !== "number" ||
-        typeof guestScore !== "number" ||
-        typeof roundNumber !== "number"
+        typeof hostManaGain !== "number" ||
+        typeof guestManaGain !== "number" ||
+        typeof hostScoreGain !== "number" ||
+        typeof guestScoreGain !== "number" ||
+        typeof winnerOfRound !== "string" ||
+        typeof game[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== "number"
       ) {
         return room;
       }
 
-      if (Math.max(hostScore, guestScore) < matchPoint) {
+      if (winnerOfRound === WINNER_DETECTION_RESULT.DRAW) {
+        const newHostMana = hostMana + hostManaGain;
+        const newGuestMana = guestMana + guestManaGain;
+        host[GENERAL_ROOM_KEYS.MANA] = newHostMana;
+        guest[GENERAL_ROOM_KEYS.MANA] = newGuestMana;
+      } else {
+        host[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+        guest[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+      }
+
+      const newHostScore = hostScore + hostScoreGain;
+      const newGuestScore = guestScore + guestScoreGain;
+      host[GENERAL_ROOM_KEYS.SCORE] = newHostScore;
+      guest[GENERAL_ROOM_KEYS.SCORE] = newGuestScore;
+
+      if (Math.max(newHostScore, newGuestScore) < matchPoint) {
         game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.SELECTING;
-        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] += 1;
+        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] = roundNumber + 1;
         game[GENERAL_ROOM_KEYS.HAND_SUBMISSION_DEADLINE] =
           findHandSubmissionDeadline(thinkingTimeInSec);
       } else {
         game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.FINISHED;
-        game[GENERAL_ROOM_KEYS.FINAL_WINNER_UID] = hostScore >= matchPoint ? hostUid : guestUid;
+        game[GENERAL_ROOM_KEYS.FINAL_WINNER_OF_MATCH] =
+          newHostScore >= matchPoint
+            ? WINNER_DETECTION_RESULT.HOST_WON
+            : WINNER_DETECTION_RESULT.GUEST_WON;
       }
 
       return room;
@@ -99,7 +126,53 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
     }
 
     const finalRoom = result.snapshot.val();
-    const finalGamePhase = finalRoom[GENERAL_ROOM_KEYS.GAME]?.[GENERAL_ROOM_KEYS.PHASE];
+    const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
+    const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
+    const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
+    const finalRules = finalRoom[GENERAL_ROOM_KEYS.RULES];
+    const finalResolvedRound = finalGame?.[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+
+    if (!finalHost || !finalGuest || !finalGame || !finalRules || !finalResolvedRound) {
+      throw new HttpsError("failed-precondition", "Database is incomplete. (after transaction)");
+    }
+
+    const finalHostMana = finalHost[GENERAL_ROOM_KEYS.MANA];
+    const finalHostScore = finalHost[GENERAL_ROOM_KEYS.SCORE];
+    const finalGuestMana = finalGuest[GENERAL_ROOM_KEYS.MANA];
+    const finalGuestScore = finalGuest[GENERAL_ROOM_KEYS.SCORE];
+    const finalThinkingTimeInSec = finalRules[GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC];
+    const finalMatchPoint = finalRules[GENERAL_ROOM_KEYS.MATCH_POINT];
+    const finalHostManaGain =
+      finalResolvedRound?.[GENERAL_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.MANA_GAIN];
+    const finalGuestManaGain =
+      finalResolvedRound?.[GENERAL_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.MANA_GAIN];
+    const finalHostScoreGain =
+      finalResolvedRound?.[GENERAL_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.SCORE_GAIN];
+    const finalGuestScoreGain =
+      finalResolvedRound?.[GENERAL_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.SCORE_GAIN];
+    const finalWinnerOfRound = finalResolvedRound?.[GENERAL_ROOM_KEYS.WINNER_OF_ROUND];
+
+    if (
+      typeof finalHostMana !== "number" ||
+      typeof finalHostScore !== "number" ||
+      typeof finalGuestMana !== "number" ||
+      typeof finalGuestScore !== "number" ||
+      typeof finalThinkingTimeInSec !== "number" ||
+      typeof finalMatchPoint !== "number" ||
+      typeof finalHostManaGain !== "number" ||
+      typeof finalGuestManaGain !== "number" ||
+      typeof finalHostScoreGain !== "number" ||
+      typeof finalGuestScoreGain !== "number" ||
+      typeof finalWinnerOfRound !== "string" ||
+      typeof finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== "number"
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Database has only incomplete detail. (after transaction)",
+      );
+    }
+
+    const finalGamePhase = finalGame[GENERAL_ROOM_KEYS.PHASE];
     if (finalGamePhase !== GAME_PHASES.SELECTING && finalGamePhase !== GAME_PHASES.FINISHED) {
       throw new HttpsError("internal", "Cannot go to selecting or finished from resolved.");
     }

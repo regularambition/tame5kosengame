@@ -7,11 +7,11 @@ import {
   DATABASE_PATHS_FOR_ROOMS,
   GAME_PHASES,
   GENERAL_ROOM_KEYS,
-  PRIVATE_ROOM_KEYS,
   ROOM_STATES,
   isValidHand,
   HAND_IDS,
-  INITIAL_VALUES_IN_BATTLE,
+  findManaGain,
+  WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
 import {ServerValue} from "firebase-admin/database";
@@ -23,51 +23,34 @@ import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
 import {FinishResolvedPhaseTask} from "../contracts";
 import {ALGORITHM_NAME} from "../config";
 
-function findManaGain(hand: HandId): number {
-  if (hand === HAND_IDS.CHARGE) {
-    return 1;
-  } else if (hand === HAND_IDS.ATTACK) {
-    return -1;
-  } else if (hand === HAND_IDS.BEAM) {
-    return -5;
-  } else {
-    return 0;
-  }
-}
-
-type UidHandPair = {
-  uid: string;
-  hand: HandId;
-};
-
-function findWinnerUid(uhp1: UidHandPair, uhp2: UidHandPair): string {
-  const {uid: uid1, hand: hand1} = uhp1;
-  const {uid: uid2, hand: hand2} = uhp2;
-
-  if (hand1 === hand2) {
-    return "";
+function findWinnerOfRound(hostHand: HandId, guestHand: HandId) {
+  if (hostHand === guestHand) {
+    return WINNER_DETECTION_RESULT.DRAW;
   }
 
-  let res = "";
-  if (hand1 === HAND_IDS.CHARGE) {
-    if (hand2 === HAND_IDS.ATTACK || hand2 === HAND_IDS.BEAM) {
-      res = uid2;
+  if (hostHand === HAND_IDS.CHARGE) {
+    if (guestHand === HAND_IDS.ATTACK || guestHand === HAND_IDS.BEAM) {
+      return WINNER_DETECTION_RESULT.GUEST_WON;
+    } else {
+      return WINNER_DETECTION_RESULT.DRAW;
     }
-  } else if (hand1 === HAND_IDS.DEFENSE) {
-    if (hand2 === HAND_IDS.BEAM) {
-      res = uid2;
+  } else if (hostHand === HAND_IDS.DEFENSE) {
+    if (guestHand === HAND_IDS.BEAM) {
+      return WINNER_DETECTION_RESULT.GUEST_WON;
+    } else {
+      return WINNER_DETECTION_RESULT.DRAW;
     }
-  } else if (hand1 === HAND_IDS.ATTACK) {
-    if (hand2 === HAND_IDS.CHARGE) {
-      res = uid1;
-    } else if (hand2 === HAND_IDS.BEAM) {
-      res = uid2;
+  } else if (hostHand === HAND_IDS.ATTACK) {
+    if (guestHand === HAND_IDS.CHARGE) {
+      return WINNER_DETECTION_RESULT.HOST_WON;
+    } else if (guestHand === HAND_IDS.BEAM) {
+      return WINNER_DETECTION_RESULT.GUEST_WON;
+    } else {
+      return WINNER_DETECTION_RESULT.DRAW;
     }
   } else {
-    res = uid1;
+    return WINNER_DETECTION_RESULT.HOST_WON;
   }
-
-  return res;
 }
 
 function findScoreGain(winnersHand: HandId, winnerUid: string, uid: string) {
@@ -84,7 +67,7 @@ function findScoreGain(winnersHand: HandId, winnerUid: string, uid: string) {
   }
 }
 
-function makeFinishIntroTaskId(roomId: string, nextPhaseAt: number): string {
+function makeFinishResolvedTaskId(roomId: string, nextPhaseAt: number): string {
   return createHash(ALGORITHM_NAME)
     .update(`finish-resolved:${roomId}:${nextPhaseAt}`)
     .digest("hex");
@@ -93,8 +76,7 @@ function makeFinishIntroTaskId(roomId: string, nextPhaseAt: number): string {
 async function enqueueFinishResolvedPhase(
   roomId: string,
   nextPhaseAt: number,
-  hostUid: string,
-  guestUid: string,
+  roundNumber: number,
 ): Promise<void> {
   const queue = getFunctions().taskQueue(buildTaskPath("finishResolvedPhase"));
 
@@ -103,14 +85,13 @@ async function enqueueFinishResolvedPhase(
       {
         roomId,
         nextPhaseAt,
-        hostUid,
-        guestUid,
+        roundNumber,
       } satisfies FinishResolvedPhaseTask,
       {
         scheduleTime: new Date(nextPhaseAt),
 
         // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
-        id: makeFinishIntroTaskId(roomId, nextPhaseAt),
+        id: makeFinishResolvedTaskId(roomId, nextPhaseAt),
       },
     );
   } catch (error) {
@@ -130,7 +111,6 @@ export const submitHand = onCall<SubmitHandRequest>(
     }
 
     const {roomId, hand, roundNumber} = request.data;
-    console.log(hand);
     if (!isValidPushId(roomId)) {
       throw new HttpsError("invalid-argument", "Invalid room ID.");
     }
@@ -148,8 +128,8 @@ export const submitHand = onCall<SubmitHandRequest>(
     }
 
     const uid = request.auth.uid;
-    const hostUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
-    const guestUid = roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val();
+    const hostUid = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
+    const guestUid = roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val();
     if (typeof hostUid !== "string" || typeof guestUid !== "string") {
       throw new HttpsError("internal", "Incomplete database.");
     }
@@ -157,10 +137,32 @@ export const submitHand = onCall<SubmitHandRequest>(
       throw new HttpsError("failed-precondition", "Invalid user.");
     }
 
-    // const actualMana = roomSnapshot
-    //   .child(uid === hostUid ? PRIVATE_ROOM_KEYS.HOST : PRIVATE_ROOM_KEYS.GUEST)
+    // チート対策
+    // const actualHostMana = roomSnapshot
+    //   .child(GENERAL_ROOM_KEYS.HOST)
     //   .child(GENERAL_ROOM_KEYS.MANA)
     //   .val();
+    // const actualGuestMana = roomSnapshot
+    //   .child(GENERAL_ROOM_KEYS.GUEST)
+    //   .child(GENERAL_ROOM_KEYS.MANA)
+    //   .val();
+    // if (typeof actualHostMana !== "number" || typeof actualGuestMana !== "number") {
+    //   throw new HttpsError("internal", "Database lacks mana.");
+    // }
+    // const actualHostScore = roomSnapshot
+    //   .child(GENERAL_ROOM_KEYS.HOST)
+    //   .child(GENERAL_ROOM_KEYS.SCORE)
+    //   .val();
+    // const actualGuestScore = roomSnapshot
+    //   .child(GENERAL_ROOM_KEYS.GUEST)
+    //   .child(GENERAL_ROOM_KEYS.SCORE)
+    //   .val();
+    // if (typeof actualHostScore !== "number" || typeof actualGuestScore !== "number") {
+    //   throw new HttpsError("internal", "Database lacks score.");
+    // }
+
+    // // const actualMana = uid === hostUid ? actualHostMana : actualGuestMana;
+    // // const actualScore = uid === hostUid ? actualHostScore : actualGuestScore;
 
     const submissionRef = db.ref(
       DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHand(roomId, roundNumber),
@@ -171,14 +173,14 @@ export const submitHand = onCall<SubmitHandRequest>(
       submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS] ??= {};
 
       const savedHand = submission[GENERAL_ROOM_KEYS.HANDS_OF][uid];
-      if (submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS][uid] === true && savedHand !== hand) {
-        // transactionを中止する
-        return;
-      }
-
-      // 同一ラウンドで既に提出済みなら冪等に成功させる
       if (submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS][uid] === true) {
-        return submission;
+        if (savedHand === hand) {
+          // 同一ラウンドで既に提出済みなら冪等に成功させる
+          return submission;
+        } else {
+          // 再試行時に手の書き換えをしようとしている場合は失敗
+          return;
+        }
       }
 
       submission[GENERAL_ROOM_KEYS.HANDS_OF][uid] = hand;
@@ -195,31 +197,46 @@ export const submitHand = onCall<SubmitHandRequest>(
     }
 
     const bothSubmitted = submittedPlayers[hostUid] === true && submittedPlayers[guestUid] === true;
-    const winnerUid = findWinnerUid(
-      {uid: hostUid, hand: handsOf[hostUid]},
-      {uid: guestUid, hand: handsOf[guestUid]},
-    );
 
     if (!bothSubmitted) {
       return {hasSucceeded: true};
     }
 
+    const winnerOfRound = findWinnerOfRound(handsOf[hostUid], handsOf[guestUid]);
+    const winnerUid =
+      winnerOfRound === WINNER_DETECTION_RESULT.HOST_WON
+        ? hostUid
+        : winnerOfRound === WINNER_DETECTION_RESULT.GUEST_WON
+          ? guestUid
+          : "";
     const result = await roomRef.transaction((room) => {
-      if (
-        room === null ||
-        room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING ||
-        typeof room[PRIVATE_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.UID] !== "string" ||
-        typeof room[PRIVATE_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.UID] !== "string"
-      ) {
+      if (room === null || room[GENERAL_ROOM_KEYS.STATE] === null) {
         return room;
+      }
+
+      if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
+        return;
       }
 
       const game = room[GENERAL_ROOM_KEYS.GAME];
       if (
-        game?.[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
-        game?.[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
+        game === null ||
+        game[GENERAL_ROOM_KEYS.PHASE] === null ||
+        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
       ) {
         return room;
+      }
+
+      if (game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.RESOLVED) {
+        // 結果を冪等にする
+        return room;
+      }
+
+      if (
+        game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
+        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
+      ) {
+        return;
       }
 
       game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.RESOLVED;
@@ -227,33 +244,33 @@ export const submitHand = onCall<SubmitHandRequest>(
       game[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
       const resolvedRound = game[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
       resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] = roundNumber;
-      resolvedRound[GENERAL_ROOM_KEYS.WINNER_UID] = winnerUid;
+      resolvedRound[GENERAL_ROOM_KEYS.WINNER_OF_ROUND] = winnerOfRound;
       resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
       resolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] = findNextPhaseAt();
 
-      resolvedRound[hostUid] ??= {};
-      resolvedRound[hostUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[hostUid];
+      resolvedRound[GENERAL_ROOM_KEYS.HOST] ??= {};
+      resolvedRound[GENERAL_ROOM_KEYS.GUEST] ??= {};
 
-      resolvedRound[guestUid] ??= {};
-      resolvedRound[guestUid][GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[guestUid];
+      const resRoundHost = resolvedRound[GENERAL_ROOM_KEYS.HOST];
+      const resRoundGuest = resolvedRound[GENERAL_ROOM_KEYS.GUEST];
 
-      if (!winnerUid) {
-        resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[hostUid]);
-        resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] += findManaGain(handsOf[guestUid]);
-      } else {
-        resolvedRound[hostUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
-        resolvedRound[guestUid][GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
+      resRoundHost[GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[hostUid];
+      resRoundGuest[GENERAL_ROOM_KEYS.SELECTED_HAND] = handsOf[guestUid];
 
-        resolvedRound[hostUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
-          handsOf[hostUid],
-          winnerUid,
-          hostUid,
-        );
-        resolvedRound[guestUid][GENERAL_ROOM_KEYS.SCORE] += findScoreGain(
-          handsOf[guestUid],
-          winnerUid,
-          guestUid,
-        );
+      resRoundHost[GENERAL_ROOM_KEYS.SCORE_GAIN] = findScoreGain(
+        handsOf[hostUid],
+        winnerUid,
+        hostUid,
+      );
+      resRoundGuest[GENERAL_ROOM_KEYS.SCORE_GAIN] = findScoreGain(
+        handsOf[guestUid],
+        winnerUid,
+        guestUid,
+      );
+
+      if (winnerOfRound === WINNER_DETECTION_RESULT.DRAW) {
+        resRoundHost[GENERAL_ROOM_KEYS.MANA_GAIN] = findManaGain(handsOf[hostUid]);
+        resRoundGuest[GENERAL_ROOM_KEYS.MANA_GAIN] = findManaGain(handsOf[guestUid]);
       }
 
       return room;
@@ -268,9 +285,15 @@ export const submitHand = onCall<SubmitHandRequest>(
     const finalRoom = result.snapshot.val();
     const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
     const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
-    const finalHost = finalRoom[PRIVATE_ROOM_KEYS.HOST];
-    const finalGuest = finalRoom[PRIVATE_ROOM_KEYS.GUEST];
-    if (!finalHost || !finalGuest || !finalGame) {
+    const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
+    const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
+    if (
+      !finalHost ||
+      !finalGuest ||
+      !finalGame ||
+      !finalGame[GENERAL_ROOM_KEYS.PHASE] ||
+      finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+    ) {
       throw new HttpsError("failed-precondition", "Private room data is incomplete.");
     }
     if (finalState !== ROOM_STATES.PLAYING) {
@@ -300,12 +323,7 @@ export const submitHand = onCall<SubmitHandRequest>(
       throw new HttpsError("internal", "Resolved phase deadline is missing.");
     }
 
-    await enqueueFinishResolvedPhase(
-      roomId,
-      nextPhaseAt,
-      finalHost[GENERAL_ROOM_KEYS.UID],
-      finalGuest[GENERAL_ROOM_KEYS.UID],
-    );
+    await enqueueFinishResolvedPhase(roomId, nextPhaseAt, roundNumber);
 
     return {hasSucceeded: true};
   },

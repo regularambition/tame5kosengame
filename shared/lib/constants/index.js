@@ -3,3 +3,4 @@ export * from "./GamePhases.js";
 export * from "./duration.js";
 export * from "./handIds.js";
 export * from "./initialValuesInBattle.js";
+export * from "./winnerDetection.js";

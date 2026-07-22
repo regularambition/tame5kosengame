@@ -6,12 +6,14 @@ export const GENERAL_ROOM_KEYS = {
   MATCH_POINT: "matchPoint",
   THINKING_TIME_IN_SEC: "thinkingTimeInSec",
   STATE: "state",
+  HOST: "host",
+  GUEST: "guest",
   UID: "uid",
   NAME: "name",
   SCORE: "score",
   MANA: "mana",
   HAS_FINISHED_INTERLUDE: "hasFinishedInterlude",
-  FINAL_WINNER_UID: "finalWinnerUid",
+  FINAL_WINNER_OF_MATCH: "finalWinnerOfMatch",
   GAME: "game",
   PHASE: "phase",
   HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline",
@@ -20,15 +22,15 @@ export const GENERAL_ROOM_KEYS = {
   ROUND_NUMBER: "roundNumber",
   HANDS_OF: "handsOf",
   RESOLVED_ROUND: "resolvedRound",
+  MANA_GAIN: "manaGain",
+  SCORE_GAIN: "scoreGain",
   SELECTED_HAND: "selectedHand",
-  WINNER_UID: "winnerUid",
+  WINNER_OF_ROUND: "winnerOfRound",
   RESOLVED_AT: "resolvedAt",
   NEXT_PHASE_AT: "nextPhaseAt",
 } as const;
 
 export const PRIVATE_ROOM_KEYS = {
-  HOST: "host",
-  GUEST: "guest",
   SPECTATORS: "spectators",
   JOIN_CODE_HASH: "joinCodeHash",
   READY: "ready",
@@ -48,28 +50,34 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.STATE}`,
 
   privateRoomGuestName: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
 
   privateRoomGuestScore: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
 
   privateRoomHostScore: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
 
   privateRoomSpectator: (roomId: string, uid: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}/${uid}`,
 
+  game: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}`,
+
+  currentRoundNumber: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.ROUND_NUMBER}`,
+
   gamePhase: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}/${GENERAL_ROOM_KEYS.PHASE}`,
+    `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.PHASE}`,
 
   handSubmissionDeadline: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}/${GENERAL_ROOM_KEYS.HAND_SUBMISSION_DEADLINE}`,
+    `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.HAND_SUBMISSION_DEADLINE}`,
 
   resolvedRound: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}/${GENERAL_ROOM_KEYS.RESOLVED_ROUND}`,
+    `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.RESOLVED_ROUND}`,
 
   nextPhaseAt: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}/${GENERAL_ROOM_KEYS.RESOLVED_ROUND}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
+    `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
 
   privateRoomJoinCode: (joinCodeHash: string) =>
     `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
