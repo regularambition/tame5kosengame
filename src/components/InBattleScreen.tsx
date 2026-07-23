@@ -14,6 +14,8 @@ import {
   HandId,
   HAND_IDS,
   INITIAL_VALUES_IN_BATTLE,
+  WinnerDetectionResultId,
+  WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 
 import {MatchInfo} from "../App";
@@ -27,7 +29,20 @@ import {watchHandSubmissionDeadline} from "../api/inBattle/watchHandSubmissionDe
 import {submitHand} from "../api/inBattle/submitHand";
 import {watchNextPhaseAt} from "../api/inBattle/watchNextPhaseAt";
 import {watchCurrentRoundNumber} from "../api/inBattle/watchCurrentRoundNumber";
-import {isPlayer, isPrivateMatch, isSpectator} from "../constants/rolesInBattle";
+import {
+  isGuest,
+  isHost,
+  isPlayer,
+  isPrivateMatch,
+  isSpectator,
+  RolesInBattleId,
+} from "../constants/rolesInBattle";
+import {
+  HAND_SUBMISSION_RETRY_INTERVAL_MS,
+  MINIMUM_REQUEST_MARGIN_MS,
+  REMAINING_INTERLUDE_TIME_RENDER_INTERVAL_MS,
+} from "../constants/durationInBattle";
+import {watchFinalWinnerOfMatch} from "../api/inBattle/watchFinalWinnerOfMatch";
 
 type MainDivProps = {
   children: ReactNode;
@@ -48,16 +63,16 @@ function MainDiv({children, className = "", isVerticalEven = false, ...props}: M
 type PlayerStatusDivProps = {
   userName: string;
   className?: string;
-  isPlayer1: boolean;
-  iAmPlayer?: boolean;
+  isDownside: boolean;
+  role: RolesInBattleId;
   // score: number;
   // mana: number;
 };
 function PlayerStatusDiv({
   userName,
   className = "",
-  isPlayer1,
-  iAmPlayer = true,
+  isDownside,
+  role,
   // score,
   // mana,
 }: PlayerStatusDivProps) {
@@ -69,7 +84,8 @@ function PlayerStatusDiv({
             <td>1点</td>
             <td>
               {userName}
-              {isPlayer1 && (iAmPlayer ? "(You)" : "(Host)")}
+              {isDownside && (isPlayer(role) ? "(You)" : "(Host)")}
+              {!isDownside && isSpectator(role) && "(Guest)"}
             </td>
             <td>0マナ</td>
           </tr>
@@ -94,59 +110,56 @@ function toRemainingTimeInSec(remainingMs: number): number {
   return res;
 }
 
-type IntroPhaseDivProps = {matchInfo: MatchInfo};
-function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
-  const {matchPoint, thinkingTimeInSec} = matchInfo;
+function renderRemainingInterludeTime(matchInfo: MatchInfo) {
   const {isReady, now} = useServerClock();
 
-  const [remainingTimeInSec, setRemainingTimeInSec] = useState<number | null>(null);
   const [nextPhaseAt, setNextPhaseAt] = useState<number | null>(null);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
 
   useEffect(() => {
     return watchNextPhaseAt(matchInfo.roomId, setNextPhaseAt, true);
-  }, [matchInfo.roomId]);
-
-  // useEffect(() => {
-  //   const updateRemainingTime = async () => {
-  //     if (!isReady || nextPhaseAt === null) {
-  //       return;
-  //     }
-
-  //     const remainingMs = Math.max(0, nextPhaseAt - now());
-  //     setRemainingTimeInSec(toRemainingTimeInSec(remainingMs));
-
-  //     if (remainingMs > 0) {
-  //       window.setTimeout(updateRemainingTime, Math.min(remainingMs, 1000));
-  //     }
-  //   };
-
-  //   updateRemainingTime();
-  // }, [isReady, nextPhaseAt, now]);
+  }, []);
 
   useEffect(() => {
     if (!isReady || nextPhaseAt === null) {
-      setRemainingTimeInSec(null);
+      setRemainingMs(null);
       return;
     }
 
     let timeoutId: number | undefined;
     let disposed = false;
 
-    const updateRemainingTime = () => {
+    const updateRemainingMs = async () => {
       if (disposed) {
         return;
       }
 
-      const remainingMs = Math.max(0, nextPhaseAt - now());
+      const nextRemainingMs = Math.max(0, nextPhaseAt - now());
+      setRemainingMs(nextRemainingMs);
 
-      setRemainingTimeInSec(toRemainingTimeInSec(remainingMs));
+      const scheduleNext = (delayMs: number) => {
+        if (timeoutId !== undefined) {
+          window.clearTimeout(timeoutId);
+        }
 
-      if (remainingMs > 0) {
-        timeoutId = window.setTimeout(updateRemainingTime, Math.min(remainingMs, 1000));
+        timeoutId = window.setTimeout(updateRemainingMs, delayMs);
+      };
+
+      if (nextRemainingMs > 0) {
+        scheduleNext(Math.min(nextRemainingMs, REMAINING_INTERLUDE_TIME_RENDER_INTERVAL_MS));
+        return;
       }
     };
 
-    updateRemainingTime();
+    void updateRemainingMs();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void updateRemainingMs();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       disposed = true;
@@ -154,8 +167,20 @@ function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
       }
+
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isReady, nextPhaseAt, now]);
+  }, [isReady, now, nextPhaseAt]);
+
+  return remainingMs;
+}
+
+type IntroPhaseDivProps = {matchInfo: MatchInfo};
+function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
+  const {matchPoint, thinkingTimeInSec} = matchInfo;
+
+  const remainingMs = renderRemainingInterludeTime(matchInfo);
+  const remainingTimeInSec = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
 
   return (
     <MainDiv>
@@ -191,8 +216,6 @@ function CardButton({src, label, disabled = false, onClick}: CardButtonProps) {
   );
 }
 
-const HAND_SUBMISSION_RETRY_INTERVAL_MS = 1000;
-const MINIMUM_REQUEST_MARGIN_MS = 250;
 type UseScheduledHandSubmissionArgs = {
   deadline: number | null;
   selectedHand: HandId;
@@ -400,12 +423,21 @@ function ChoiceIcon({src}: ChoiceIconProps) {
   return <img className="card-button" src={src} alt="" />;
 }
 
-type ResolvedPhaseDivProps = {};
-function ResolvedPhaseDiv({}: ResolvedPhaseDivProps) {
+type ResolvedPhaseDivProps = {
+  matchInfo: MatchInfo;
+};
+function ResolvedPhaseDiv({matchInfo}: ResolvedPhaseDivProps) {
+  const remainingMs = renderRemainingInterludeTime(matchInfo);
+  const remainingTimeInSec = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
+
+  const displayedStr =
+    "このラウンドの結果反映まで残り" +
+    (remainingTimeInSec === null ? "（取得中）" : `${remainingTimeInSec}秒`);
+
   return (
     <MainDiv isVerticalEven={true}>
       <ChoiceIcon src={HANDS.CHARGE.imageSrc} />
-      <p>選択が揃った後の処理画面</p>
+      <p>{displayedStr}</p>
       <ChoiceIcon src={HANDS.ATTACK.imageSrc} />
     </MainDiv>
   );
@@ -413,14 +445,28 @@ function ResolvedPhaseDiv({}: ResolvedPhaseDivProps) {
 
 type FinishedPhaseDivProps = {
   matchInfo: MatchInfo;
+  finalWinnerOfMatch: WinnerDetectionResultId;
 };
-function FinishedPhaseDiv({matchInfo}: FinishedPhaseDivProps) {
+function FinishedPhaseDiv({matchInfo, finalWinnerOfMatch}: FinishedPhaseDivProps) {
   const findWinner = (matchInfo: MatchInfo) => {
-    if (isPlayer(matchInfo.role)) {
-      return "YOU";
+    let res = "";
+    if (finalWinnerOfMatch === WINNER_DETECTION_RESULT.HOST_WON) {
+      if (isHost(matchInfo.role)) {
+        res += "YOU";
+      } else if (isGuest(matchInfo.role)) {
+        res += "OPPONENT";
+      } else {
+        res += "HOST";
+      }
+    } else if (isGuest(matchInfo.role)) {
+      res += "YOU";
+    } else if (isHost(matchInfo.role)) {
+      res += "OPPONENT";
     } else {
-      return "HOST";
+      res += "GUEST";
     }
+
+    return res;
   };
 
   return (
@@ -448,6 +494,14 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [hostScore, setHostScore] = useState<number>(INITIAL_VALUES_IN_BATTLE.SCORE);
   const [guestMana, setGuestMana] = useState<number>(INITIAL_VALUES_IN_BATTLE.MANA);
   const [guestScore, setGuestScore] = useState<number>(INITIAL_VALUES_IN_BATTLE.SCORE);
+
+  const [finalWinnerOfMatch, setFinalWinnerOfMatch] = useState<WinnerDetectionResultId>(
+    WINNER_DETECTION_RESULT.DRAW,
+  );
+
+  useEffect(() => {
+    return watchFinalWinnerOfMatch(matchInfo.roomId, setFinalWinnerOfMatch, true);
+  }, []);
 
   function debug() {
     const {roomId, role, hostName, guestName, matchPoint, thinkingTimeInSec} = matchInfo;
@@ -483,11 +537,13 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   return (
     <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
       {isPrivateMatch(matchInfo.role) && <SpectatorUiDiv></SpectatorUiDiv>}
-      <ResignButton onClick={updateGamePhase}></ResignButton>
+      {(gamePhase === GAME_PHASES.SELECTING || gamePhase === GAME_PHASES.RESOLVED) &&
+        isPlayer(matchInfo.role) && <ResignButton onClick={updateGamePhase}></ResignButton>}
       <PlayerStatusDiv
-        userName={matchInfo.guestName}
+        userName={isGuest(matchInfo.role) ? matchInfo.hostName : matchInfo.guestName}
         className="panel-p2"
-        isPlayer1={false}
+        isDownside={false}
+        role={matchInfo.role}
       ></PlayerStatusDiv>
       {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo} />}
       {gamePhase === GAME_PHASES.SELECTING && (
@@ -499,13 +555,15 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
           }}
         />
       )}
-      {gamePhase === GAME_PHASES.RESOLVED && <ResolvedPhaseDiv />}
-      {gamePhase === GAME_PHASES.FINISHED && <FinishedPhaseDiv matchInfo={matchInfo} />}
+      {gamePhase === GAME_PHASES.RESOLVED && <ResolvedPhaseDiv matchInfo={matchInfo} />}
+      {gamePhase === GAME_PHASES.FINISHED && (
+        <FinishedPhaseDiv matchInfo={matchInfo} finalWinnerOfMatch={finalWinnerOfMatch} />
+      )}
       <PlayerStatusDiv
-        userName={matchInfo.hostName}
+        userName={isGuest(matchInfo.role) ? matchInfo.guestName : matchInfo.hostName}
         className="panel-p1"
-        isPlayer1={true}
-        iAmPlayer={isPlayer(matchInfo.role)}
+        isDownside={true}
+        role={matchInfo.role}
       ></PlayerStatusDiv>
     </main>
   );
