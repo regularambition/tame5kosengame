@@ -53,6 +53,8 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     handSubmissionDeadline: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.HAND_SUBMISSION_DEADLINE}`,
     finalWinnerOfMatch: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.FINAL_WINNER_OF_MATCH}`,
     resolvedRound: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.RESOLVED_ROUND}`,
+    resolvedHostHand: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,
+    resolvedGuestHand: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,
     nextPhaseAt: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
     privateRoomJoinCode: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
     privateRoomJoinCodeRoomId: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}/${PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID}`,

@@ -48,6 +48,8 @@ import {watchHostScore} from "../api/inBattle/watchHostScore";
 import {watchGuestMana} from "../api/inBattle/watchGuestMana";
 import {watchGuestScore} from "../api/inBattle/watchGuestScore";
 import {watchSpectatorCount} from "../api/inBattle/watchSpectatorCount";
+import {watchResolvedHostHand} from "../api/inBattle/watchResolvedHostHand";
+import {watchResolvedGuestHand} from "../api/inBattle/watchResolvedGuestHand";
 
 type MainDivProps = {
   children: ReactNode;
@@ -124,7 +126,7 @@ function renderRemainingInterludeTime(matchInfo: MatchInfo) {
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
 
   useEffect(() => {
-    return watchNextPhaseAt(matchInfo.roomId, setNextPhaseAt, true);
+    return watchNextPhaseAt(matchInfo.roomId, setNextPhaseAt, isPrivateMatch(matchInfo.role));
   }, []);
 
   useEffect(() => {
@@ -435,8 +437,9 @@ function ChoiceIcon({src}: ChoiceIconProps) {
 
 type ResolvedPhaseDivProps = {
   matchInfo: MatchInfo;
+  isDownsideGuest: boolean;
 };
-function ResolvedPhaseDiv({matchInfo}: ResolvedPhaseDivProps) {
+function ResolvedPhaseDiv({matchInfo, isDownsideGuest}: ResolvedPhaseDivProps) {
   const remainingMs = renderRemainingInterludeTime(matchInfo);
   const remainingTimeInSec = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
 
@@ -444,27 +447,64 @@ function ResolvedPhaseDiv({matchInfo}: ResolvedPhaseDivProps) {
     "このラウンドの結果反映まで残り" +
     (remainingTimeInSec === null ? "（取得中）" : `${remainingTimeInSec}秒`);
 
+  const toImageSource = (hand: HandId) => {
+    if (hand === HAND_IDS.CHARGE) {
+      return HANDS.CHARGE.imageSrc;
+    } else if (hand === HAND_IDS.DEFENSE) {
+      return HANDS.DEFENSE.imageSrc;
+    } else if (hand === HAND_IDS.ATTACK) {
+      return HANDS.ATTACK.imageSrc;
+    } else {
+      return HANDS.BEAM.imageSrc;
+    }
+  };
+
+  const [resolvedHostHand, setResolvedHostHand] = useState<HandId>(HAND_IDS.CHARGE);
+  const [resolvedGuestHand, setResolvedGuestHand] = useState<HandId>(HAND_IDS.CHARGE);
+
+  useEffect(() => {
+    return watchResolvedHostHand(
+      matchInfo.roomId,
+      setResolvedHostHand,
+      isPrivateMatch(matchInfo.role),
+    );
+  }, []);
+
+  useEffect(() => {
+    return watchResolvedGuestHand(
+      matchInfo.roomId,
+      setResolvedGuestHand,
+      isPrivateMatch(matchInfo.role),
+    );
+  }, []);
+
   return (
     <MainDiv isVerticalEven={true}>
-      <ChoiceIcon src={HANDS.CHARGE.imageSrc} />
+      <ChoiceIcon src={toImageSource(isDownsideGuest ? resolvedHostHand : resolvedGuestHand)} />
       <p>{displayedStr}</p>
-      <ChoiceIcon src={HANDS.ATTACK.imageSrc} />
+      <ChoiceIcon src={toImageSource(isDownsideGuest ? resolvedGuestHand : resolvedHostHand)} />
     </MainDiv>
   );
 }
 
 type FinishedPhaseDivProps = {
   matchInfo: MatchInfo;
-  finalWinnerOfMatch: WinnerDetectionResultId;
   leftScore: number;
   rightScore: number;
 };
-function FinishedPhaseDiv({
-  matchInfo,
-  finalWinnerOfMatch,
-  leftScore,
-  rightScore,
-}: FinishedPhaseDivProps) {
+function FinishedPhaseDiv({matchInfo, leftScore, rightScore}: FinishedPhaseDivProps) {
+  const [finalWinnerOfMatch, setFinalWinnerOfMatch] = useState<WinnerDetectionResultId>(
+    WINNER_DETECTION_RESULT.DRAW,
+  );
+
+  useEffect(() => {
+    return watchFinalWinnerOfMatch(
+      matchInfo.roomId,
+      setFinalWinnerOfMatch,
+      isPrivateMatch(matchInfo.role),
+    );
+  }, []);
+
   const findWinner = (matchInfo: MatchInfo) => {
     let res = "";
     if (finalWinnerOfMatch === WINNER_DETECTION_RESULT.HOST_WON) {
@@ -511,11 +551,15 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [roundNumber, setRoundNumber] = useState<number>(INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER);
 
   useEffect(() => {
-    return watchGamePhase(matchInfo.roomId, setGamePhase, true);
+    return watchGamePhase(matchInfo.roomId, setGamePhase, isPrivateMatch(matchInfo.role));
   }, [matchInfo.roomId]);
 
   useEffect(() => {
-    return watchCurrentRoundNumber(matchInfo.roomId, setRoundNumber, true);
+    return watchCurrentRoundNumber(
+      matchInfo.roomId,
+      setRoundNumber,
+      isPrivateMatch(matchInfo.role),
+    );
   }, [matchInfo.roomId]);
 
   const [hostMana, setHostMana] = useState<number>(INITIAL_VALUES_IN_BATTLE.MANA);
@@ -524,27 +568,19 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   const [guestScore, setGuestScore] = useState<number>(INITIAL_VALUES_IN_BATTLE.SCORE);
 
   useEffect(() => {
-    return watchHostMana(matchInfo.roomId, setHostMana, true);
+    return watchHostMana(matchInfo.roomId, setHostMana, isPrivateMatch(matchInfo.role));
   }, []);
 
   useEffect(() => {
-    return watchHostScore(matchInfo.roomId, setHostScore, true);
+    return watchHostScore(matchInfo.roomId, setHostScore, isPrivateMatch(matchInfo.role));
   }, []);
 
   useEffect(() => {
-    return watchGuestMana(matchInfo.roomId, setGuestMana, true);
+    return watchGuestMana(matchInfo.roomId, setGuestMana, isPrivateMatch(matchInfo.role));
   }, []);
 
   useEffect(() => {
-    return watchGuestScore(matchInfo.roomId, setGuestScore, true);
-  }, []);
-
-  const [finalWinnerOfMatch, setFinalWinnerOfMatch] = useState<WinnerDetectionResultId>(
-    WINNER_DETECTION_RESULT.DRAW,
-  );
-
-  useEffect(() => {
-    return watchFinalWinnerOfMatch(matchInfo.roomId, setFinalWinnerOfMatch, true);
+    return watchGuestScore(matchInfo.roomId, setGuestScore, isPrivateMatch(matchInfo.role));
   }, []);
 
   const [spectatorCount, setSpectatorCount] = useState<number>(0);
@@ -565,7 +601,7 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
   return (
     <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
       {isPrivateMatch(matchInfo.role) && <SpectatorUiDiv spectatorCount={spectatorCount} />}
-      {canResign && <ResignButton onClick={() => {}}></ResignButton>}
+      {canResign && <ResignButton onClick={() => {}} />}
       <PlayerStatusDiv
         userName={isDownsideGuest ? matchInfo.hostName : matchInfo.guestName}
         className="panel-p2"
@@ -573,16 +609,17 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
         role={matchInfo.role}
         score={isDownsideGuest ? hostScore : guestScore}
         mana={isDownsideGuest ? hostMana : guestMana}
-      ></PlayerStatusDiv>
+      />
       {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo} />}
       {gamePhase === GAME_PHASES.SELECTING && (
         <SelectingPhaseDiv matchInfo={matchInfo} roundNumber={roundNumber} />
       )}
-      {gamePhase === GAME_PHASES.RESOLVED && <ResolvedPhaseDiv matchInfo={matchInfo} />}
+      {gamePhase === GAME_PHASES.RESOLVED && (
+        <ResolvedPhaseDiv matchInfo={matchInfo} isDownsideGuest={isDownsideGuest} />
+      )}
       {gamePhase === GAME_PHASES.FINISHED && (
         <FinishedPhaseDiv
           matchInfo={matchInfo}
-          finalWinnerOfMatch={finalWinnerOfMatch}
           leftScore={isDownsideGuest ? guestScore : hostScore}
           rightScore={isDownsideGuest ? hostScore : guestScore}
         />
@@ -594,7 +631,7 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
         role={matchInfo.role}
         score={isDownsideGuest ? guestScore : hostScore}
         mana={isDownsideGuest ? guestMana : hostMana}
-      ></PlayerStatusDiv>
+      />
     </main>
   );
 }

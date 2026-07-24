@@ -85,6 +85,12 @@ export const DATABASE_PATHS_FOR_ROOMS = {
   resolvedRound: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.RESOLVED_ROUND}`,
 
+  resolvedHostHand: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,
+
+  resolvedGuestHand: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,
+
   nextPhaseAt: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
 

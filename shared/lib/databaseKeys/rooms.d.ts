@@ -52,6 +52,8 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly handSubmissionDeadline: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly finalWinnerOfMatch: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly resolvedRound: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly resolvedHostHand: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly resolvedGuestHand: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly nextPhaseAt: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
