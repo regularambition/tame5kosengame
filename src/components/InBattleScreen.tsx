@@ -1,7 +1,7 @@
 import "./InBattleScreen.css";
 import spectatorIcon from "../assets/ui/spectatorCount.png";
 
-import {useState, useEffect, ReactNode, useRef} from "react";
+import {useState, useEffect, ReactNode, useRef, useCallback} from "react";
 
 import {Button} from "./ui/Button";
 import {HANDS} from "../constants/hands";
@@ -16,6 +16,7 @@ import {
   INITIAL_VALUES_IN_BATTLE,
   WinnerDetectionResultId,
   WINNER_DETECTION_RESULT,
+  canSelectHand,
 } from "@tame5kosengame/shared";
 
 import {MatchInfo} from "../App";
@@ -50,6 +51,7 @@ import {watchGuestScore} from "../api/inBattle/watchGuestScore";
 import {watchSpectatorCount} from "../api/inBattle/watchSpectatorCount";
 import {watchResolvedHostHand} from "../api/inBattle/watchResolvedHostHand";
 import {watchResolvedGuestHand} from "../api/inBattle/watchResolvedGuestHand";
+import {AnnotationText} from "./ui/AnnotationText";
 
 type MainDivProps = {
   children: ReactNode;
@@ -210,10 +212,11 @@ function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
 type CardButtonProps = {
   src: string;
   label: string;
+  selected?: boolean;
   disabled?: boolean;
   onClick?: () => void;
 };
-function CardButton({src, label, disabled = false, onClick}: CardButtonProps) {
+function CardButton({src, label, selected = false, disabled = false, onClick}: CardButtonProps) {
   return (
     <IconButton
       className="card-button"
@@ -221,6 +224,8 @@ function CardButton({src, label, disabled = false, onClick}: CardButtonProps) {
       label={label}
       onClick={onClick}
       disabled={disabled}
+      data-selected={selected ? "true" : undefined}
+      aria-pressed={selected}
     />
   );
 }
@@ -357,11 +362,19 @@ export function useScheduledHandSubmission({
   return remainingMs;
 }
 
+const HAND_BY_KEY_CODE: Partial<Record<string, HandId>> = {
+  KeyA: HAND_IDS.CHARGE,
+  KeyS: HAND_IDS.DEFENSE,
+  KeyK: HAND_IDS.ATTACK,
+  KeyL: HAND_IDS.BEAM,
+};
+
 type SelectingPhaseDivProps = {
   matchInfo: MatchInfo;
   roundNumber: number;
+  mana: number;
 };
-function SelectingPhaseDiv({matchInfo, roundNumber}: SelectingPhaseDivProps) {
+function SelectingPhaseDiv({matchInfo, roundNumber, mana}: SelectingPhaseDivProps) {
   const [selectedHand, setSelectedHand] = useState<HandId>(HAND_IDS.CHARGE);
   const [handSubmissionDeadline, setHandSubmissionDeadline] = useState<number | null>(null);
 
@@ -395,6 +408,65 @@ function SelectingPhaseDiv({matchInfo, roundNumber}: SelectingPhaseDivProps) {
   const remainingMs = useScheduledHandSubmission(args);
   const remainingSeconds = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
 
+  const [errorMsg, setErrorMsg] = useState<string>("");
+
+  const selectHandIfAble = useCallback(
+    (hand: HandId) => {
+      if (canSelectHand(hand, mana)) {
+        setErrorMsg("");
+        setSelectedHand(hand);
+      } else {
+        setErrorMsg("マナが不足しています");
+      }
+    },
+    [mana],
+  );
+
+  useEffect(() => {
+    if (!isPlayer(matchInfo.role)) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // キー長押しによる連続入力を無視
+      if (event.repeat) {
+        return;
+      }
+
+      // Ctrl+Aなどのショートカットには反応しない
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      // 入力欄へ文字を入力しているときは反応しない
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const isTextInput =
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target.isContentEditable;
+
+        if (isTextInput) {
+          return;
+        }
+      }
+
+      const hand = HAND_BY_KEY_CODE[event.code];
+      if (hand === undefined) {
+        return;
+      }
+
+      event.preventDefault();
+      selectHandIfAble(hand);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [matchInfo.role, selectHandIfAble]);
+
   return (
     <MainDiv>
       <p>{remainingSeconds === null ? "残り時間を取得中..." : `残り${remainingSeconds}秒`}</p>
@@ -403,26 +475,31 @@ function SelectingPhaseDiv({matchInfo, roundNumber}: SelectingPhaseDivProps) {
           <CardButton
             src={HANDS.CHARGE.imageSrc}
             label={HANDS.CHARGE.label}
-            onClick={() => setSelectedHand(HAND_IDS.CHARGE)}
+            selected={selectedHand === HAND_IDS.CHARGE}
+            onClick={() => selectHandIfAble(HAND_IDS.CHARGE)}
           />
           <CardButton
             src={HANDS.DEFENSE.imageSrc}
             label={HANDS.DEFENSE.label}
-            onClick={() => setSelectedHand(HAND_IDS.DEFENSE)}
+            selected={selectedHand === HAND_IDS.DEFENSE}
+            onClick={() => selectHandIfAble(HAND_IDS.DEFENSE)}
           />
           <CardButton
             src={HANDS.ATTACK.imageSrc}
             label={HANDS.ATTACK.label}
-            onClick={() => setSelectedHand(HAND_IDS.ATTACK)}
+            selected={selectedHand === HAND_IDS.ATTACK}
+            onClick={() => selectHandIfAble(HAND_IDS.ATTACK)}
           />
           <CardButton
             src={HANDS.BEAM.imageSrc}
             label={HANDS.BEAM.label}
-            onClick={() => setSelectedHand(HAND_IDS.BEAM)}
+            selected={selectedHand === HAND_IDS.BEAM}
+            onClick={() => selectHandIfAble(HAND_IDS.BEAM)}
           />
         </div>
       )}
       {isPlayer(matchInfo.role) && <Button>確定</Button>}
+      {errorMsg.length > 0 && <AnnotationText>{errorMsg}</AnnotationText>}
       {isSpectator(matchInfo.role) && <p>選択が揃うまでお待ち下さい</p>}
     </MainDiv>
   );
@@ -612,7 +689,11 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
       />
       {gamePhase === GAME_PHASES.INTRO && <IntroPhaseDiv matchInfo={matchInfo} />}
       {gamePhase === GAME_PHASES.SELECTING && (
-        <SelectingPhaseDiv matchInfo={matchInfo} roundNumber={roundNumber} />
+        <SelectingPhaseDiv
+          matchInfo={matchInfo}
+          roundNumber={roundNumber}
+          mana={isGuest(matchInfo.role) ? guestMana : hostMana}
+        />
       )}
       {gamePhase === GAME_PHASES.RESOLVED && (
         <ResolvedPhaseDiv matchInfo={matchInfo} isDownsideGuest={isDownsideGuest} />
