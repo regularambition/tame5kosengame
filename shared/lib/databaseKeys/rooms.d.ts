@@ -41,9 +41,11 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoom: (roomId: string) => string;
     readonly privateRoomState: (roomId: string) => string;
     readonly privateRoomGuestName: (roomId: string) => string;
-    readonly privateRoomGuestScore: (roomId: string) => string;
-    readonly privateRoomHostScore: (roomId: string) => string;
-    readonly privateRoomSpectator: (roomId: string, uid: string) => string;
+    readonly guestScore: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly guestMana: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly hostScore: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly hostMana: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly privateRoomSpectator: (roomId: string) => string;
     readonly game: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly currentRoundNumber: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly gamePhase: (roomId: string, isPrivateMatch?: boolean) => string;

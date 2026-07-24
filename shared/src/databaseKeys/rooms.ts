@@ -52,14 +52,20 @@ export const DATABASE_PATHS_FOR_ROOMS = {
   privateRoomGuestName: (roomId: string) =>
     `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
 
-  privateRoomGuestScore: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
+  guestScore: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
 
-  privateRoomHostScore: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
+  guestMana: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.MANA}`,
 
-  privateRoomSpectator: (roomId: string, uid: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}/${uid}`,
+  hostScore: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
+
+  hostMana: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.MANA}`,
+
+  privateRoomSpectator: (roomId: string) =>
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}`,
 
   game: (roomId: string, isPrivateMatch: boolean = false) =>
     `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}`,
