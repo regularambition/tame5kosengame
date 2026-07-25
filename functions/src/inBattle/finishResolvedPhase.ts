@@ -6,10 +6,11 @@ import {
   GAME_PHASES,
   GENERAL_ROOM_KEYS,
   INITIAL_VALUES_IN_BATTLE,
+  PRIVATE_ROOM_KEYS,
   WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 import {FinishResolvedPhaseTask} from "../contracts";
-import {findHandSubmissionDeadline} from "./timestampGenerator";
+import {findBackToLobbyAt, findHandSubmissionDeadline} from "./timestampGenerator";
 import {PHASE_TRANSITION_TASK_OPTIONS} from "../config";
 
 export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
@@ -114,6 +115,7 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
           newHostScore >= matchPoint
             ? WINNER_DETECTION_RESULT.HOST_WON
             : WINNER_DETECTION_RESULT.GUEST_WON;
+        game[PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT] = findBackToLobbyAt();
       }
 
       return room;

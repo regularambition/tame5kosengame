@@ -31,6 +31,7 @@ export declare const PRIVATE_ROOM_KEYS: {
     readonly SPECTATORS: "spectators";
     readonly JOIN_CODE_HASH: "joinCodeHash";
     readonly READY: "ready";
+    readonly BACK_TO_LOBBY_AT: "backToLobbyAt";
 };
 export declare const PRIVATE_ROOM_JOIN_CODE_KEYS: {
     readonly ROOM_ID: "roomId";

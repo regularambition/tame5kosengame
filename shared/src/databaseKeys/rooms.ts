@@ -34,6 +34,7 @@ export const PRIVATE_ROOM_KEYS = {
   SPECTATORS: "spectators",
   JOIN_CODE_HASH: "joinCodeHash",
   READY: "ready",
+  BACK_TO_LOBBY_AT: "backToLobbyAt",
 } as const;
 
 export const PRIVATE_ROOM_JOIN_CODE_KEYS = {
