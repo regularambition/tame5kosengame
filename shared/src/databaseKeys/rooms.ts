@@ -83,6 +83,9 @@ export const DATABASE_PATHS_FOR_ROOMS = {
   finalWinnerOfMatch: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.FINAL_WINNER_OF_MATCH}`,
 
+  backToLobbyAt: (roomId: string) =>
+    `${DATABASE_PATHS_FOR_ROOMS.game(roomId, true)}/${PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT}`,
+
   resolvedRound: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.RESOLVED_ROUND}`,
 

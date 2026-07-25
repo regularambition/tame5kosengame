@@ -52,6 +52,8 @@ import {watchSpectatorCount} from "../api/inBattle/watchSpectatorCount";
 import {watchResolvedHostHand} from "../api/inBattle/watchResolvedHostHand";
 import {watchResolvedGuestHand} from "../api/inBattle/watchResolvedGuestHand";
 import {AnnotationText} from "./ui/AnnotationText";
+import {Unsubscribe} from "firebase/database";
+import {watchBackToLobbyAt} from "../api/inBattle/watchBackToLobbyAt";
 
 type MainDivProps = {
   children: ReactNode;
@@ -121,14 +123,21 @@ function toRemainingTimeInSec(remainingMs: number): number {
   return res;
 }
 
-function renderRemainingInterludeTime(matchInfo: MatchInfo) {
+function renderRemainingInterludeTime(
+  matchInfo: MatchInfo,
+  monitorFunction: (
+    roomId: string,
+    onChange: (backToLobbyAt: number) => void,
+    isPrivateMatch: boolean,
+  ) => Unsubscribe,
+) {
   const {isReady, now} = useServerClock();
 
   const [nextPhaseAt, setNextPhaseAt] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
 
   useEffect(() => {
-    return watchNextPhaseAt(matchInfo.roomId, setNextPhaseAt, isPrivateMatch(matchInfo.role));
+    return monitorFunction(matchInfo.roomId, setNextPhaseAt, isPrivateMatch(matchInfo.role));
   }, []);
 
   useEffect(() => {
@@ -190,7 +199,7 @@ type IntroPhaseDivProps = {matchInfo: MatchInfo};
 function IntroPhaseDiv({matchInfo}: IntroPhaseDivProps) {
   const {matchPoint, thinkingTimeInSec} = matchInfo;
 
-  const remainingMs = renderRemainingInterludeTime(matchInfo);
+  const remainingMs = renderRemainingInterludeTime(matchInfo, watchNextPhaseAt);
   const remainingTimeInSec = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
 
   return (
@@ -517,7 +526,7 @@ type ResolvedPhaseDivProps = {
   isDownsideGuest: boolean;
 };
 function ResolvedPhaseDiv({matchInfo, isDownsideGuest}: ResolvedPhaseDivProps) {
-  const remainingMs = renderRemainingInterludeTime(matchInfo);
+  const remainingMs = renderRemainingInterludeTime(matchInfo, watchNextPhaseAt);
   const remainingTimeInSec = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
 
   const displayedStr =
@@ -582,6 +591,11 @@ function FinishedPhaseDiv({matchInfo, leftScore, rightScore}: FinishedPhaseDivPr
     );
   }, []);
 
+  const remainingMs = isPrivateMatch(matchInfo.role)
+    ? renderRemainingInterludeTime(matchInfo, watchBackToLobbyAt)
+    : 0;
+  const remainingTimeInSec = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
+
   const findWinner = (matchInfo: MatchInfo) => {
     let res = "";
     if (finalWinnerOfMatch === WINNER_DETECTION_RESULT.HOST_WON) {
@@ -609,7 +623,13 @@ function FinishedPhaseDiv({matchInfo, leftScore, rightScore}: FinishedPhaseDivPr
         {leftScore} - {rightScore}
       </p>
       <p className="result-description">WINNER: {findWinner(matchInfo)}</p>
-      {isPrivateMatch(matchInfo.role) && <Button>戻る</Button>}
+      {isPrivateMatch(matchInfo.role) && (
+        <p>
+          {remainingTimeInSec === null
+            ? "ロビー帰還までの時間を取得中"
+            : `${remainingTimeInSec}秒後にロビーへ戻ります`}
+        </p>
+      )}
       {!isPrivateMatch(matchInfo.role) && (
         <ButtonRow>
           <Button>再戦希望</Button>
