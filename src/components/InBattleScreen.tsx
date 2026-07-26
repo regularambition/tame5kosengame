@@ -17,9 +17,9 @@ import {
   WinnerDetectionResultId,
   WINNER_DETECTION_RESULT,
   canSelectHand,
+  ROOM_STATES,
 } from "@tame5kosengame/shared";
 
-import {MatchInfo} from "../App";
 import {CenterAligningDiv} from "./ui/CenterAligningDiv";
 import {ResignButton} from "./ui/ResignButton";
 import {IconButton} from "./ui/IconButton";
@@ -33,7 +33,7 @@ import {watchCurrentRoundNumber} from "../api/inBattle/watchCurrentRoundNumber";
 import {
   isGuest,
   isHost,
-  isPlayer,
+  isPlayerRole,
   isPrivateMatch,
   isSpectator,
   RolesInBattleId,
@@ -54,6 +54,8 @@ import {watchResolvedGuestHand} from "../api/inBattle/watchResolvedGuestHand";
 import {AnnotationText} from "./ui/AnnotationText";
 import {Unsubscribe} from "firebase/database";
 import {watchBackToLobbyAt} from "../api/inBattle/watchBackToLobbyAt";
+import {watchPrivateRoomState} from "../api/watchPrivateRoom";
+import {MatchInfo} from "../types/MatchInfo";
 
 type MainDivProps = {
   children: ReactNode;
@@ -95,7 +97,7 @@ function PlayerStatusDiv({
             <td>{score}点</td>
             <td>
               {userName}
-              {isDownside && (isPlayer(role) ? "(You)" : "(Host)")}
+              {isDownside && (isPlayerRole(role) ? "(You)" : "(Host)")}
               {!isDownside && isSpectator(role) && "(Guest)"}
             </td>
             <td>{mana}マナ</td>
@@ -432,7 +434,7 @@ function SelectingPhaseDiv({matchInfo, roundNumber, mana}: SelectingPhaseDivProp
   );
 
   useEffect(() => {
-    if (!isPlayer(matchInfo.role)) {
+    if (!isPlayerRole(matchInfo.role)) {
       return;
     }
 
@@ -479,7 +481,7 @@ function SelectingPhaseDiv({matchInfo, roundNumber, mana}: SelectingPhaseDivProp
   return (
     <MainDiv>
       <p>{remainingSeconds === null ? "残り時間を取得中..." : `残り${remainingSeconds}秒`}</p>
-      {isPlayer(matchInfo.role) && (
+      {isPlayerRole(matchInfo.role) && (
         <div className="card-container">
           <CardButton
             src={HANDS.CHARGE.imageSrc}
@@ -507,7 +509,7 @@ function SelectingPhaseDiv({matchInfo, roundNumber, mana}: SelectingPhaseDivProp
           />
         </div>
       )}
-      {isPlayer(matchInfo.role) && <Button>確定</Button>}
+      {isPlayerRole(matchInfo.role) && <Button>確定</Button>}
       {errorMsg.length > 0 && <AnnotationText>{errorMsg}</AnnotationText>}
       {isSpectator(matchInfo.role) && <p>選択が揃うまでお待ち下さい</p>}
     </MainDiv>
@@ -577,8 +579,14 @@ type FinishedPhaseDivProps = {
   matchInfo: MatchInfo;
   leftScore: number;
   rightScore: number;
+  onBackToPrivateLobby: () => void;
 };
-function FinishedPhaseDiv({matchInfo, leftScore, rightScore}: FinishedPhaseDivProps) {
+function FinishedPhaseDiv({
+  matchInfo,
+  leftScore,
+  rightScore,
+  onBackToPrivateLobby,
+}: FinishedPhaseDivProps) {
   const [finalWinnerOfMatch, setFinalWinnerOfMatch] = useState<WinnerDetectionResultId>(
     WINNER_DETECTION_RESULT.DRAW,
   );
@@ -590,6 +598,16 @@ function FinishedPhaseDiv({matchInfo, leftScore, rightScore}: FinishedPhaseDivPr
       isPrivateMatch(matchInfo.role),
     );
   }, []);
+
+  if (isPrivateMatch(matchInfo.role)) {
+    useEffect(() => {
+      return watchPrivateRoomState(matchInfo.roomId, (st) => {
+        if (st === ROOM_STATES.PREPARING) {
+          onBackToPrivateLobby();
+        }
+      });
+    }, []);
+  }
 
   const remainingMs = isPrivateMatch(matchInfo.role)
     ? renderRemainingInterludeTime(matchInfo, watchBackToLobbyAt)
@@ -642,8 +660,9 @@ function FinishedPhaseDiv({matchInfo, leftScore, rightScore}: FinishedPhaseDivPr
 
 type InBattleScreenProps = {
   matchInfo: MatchInfo;
+  onBackToPrivateLobby: () => void;
 };
-export function InBattleScreen({matchInfo}: InBattleScreenProps) {
+export function InBattleScreen({matchInfo, onBackToPrivateLobby}: InBattleScreenProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
   const [roundNumber, setRoundNumber] = useState<number>(INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER);
 
@@ -692,7 +711,7 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
 
   const isDownsideGuest = isGuest(matchInfo.role);
   const canResign =
-    isPlayer(matchInfo.role) &&
+    isPlayerRole(matchInfo.role) &&
     (gamePhase === GAME_PHASES.SELECTING || gamePhase === GAME_PHASES.RESOLVED);
 
   return (
@@ -723,6 +742,7 @@ export function InBattleScreen({matchInfo}: InBattleScreenProps) {
           matchInfo={matchInfo}
           leftScore={isDownsideGuest ? guestScore : hostScore}
           rightScore={isDownsideGuest ? hostScore : guestScore}
+          onBackToPrivateLobby={onBackToPrivateLobby}
         />
       )}
       <PlayerStatusDiv

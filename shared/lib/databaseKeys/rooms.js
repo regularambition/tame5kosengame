@@ -60,5 +60,6 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     nextPhaseAt: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
     privateRoomJoinCode: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
     privateRoomJoinCodeRoomId: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}/${PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID}`,
+    privateRoomHiddenHandRoot: (roomId) => `${ROOT_KEYS.PRIVATE_ROOM_HIDDEN_HAND}/${roomId}`,
     privateRoomHiddenHand: (roomId, roundNumber) => `${ROOT_KEYS.PRIVATE_ROOM_HIDDEN_HAND}/${roomId}/${roundNumber}`,
 };

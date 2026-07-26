@@ -59,5 +59,6 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly nextPhaseAt: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
+    readonly privateRoomHiddenHandRoot: (roomId: string) => string;
     readonly privateRoomHiddenHand: (roomId: string, roundNumber: number) => string;
 };

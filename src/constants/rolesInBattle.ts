@@ -34,6 +34,6 @@ export function isSpectator(arg: RolesInBattleId): boolean {
   return arg == ROLES_IN_BATTLE.SPECTATOR;
 }
 
-export function isPlayer(arg: RolesInBattleId): boolean {
+export function isPlayerRole(arg: RolesInBattleId): boolean {
   return !isSpectator(arg);
 }

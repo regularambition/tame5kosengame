@@ -17,7 +17,7 @@ import {
   deletePrivateRoom,
   markAsReady,
 } from "./roomManaging/privateRoom";
-import {submitHand, finishIntroPhase, finishResolvedPhase} from "./inBattle";
+import {submitHand, finishIntroPhase, finishResolvedPhase, goBackToPrivateLobby} from "./inBattle";
 
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
@@ -48,4 +48,5 @@ export {
   submitHand,
   finishIntroPhase,
   finishResolvedPhase,
+  goBackToPrivateLobby,
 };

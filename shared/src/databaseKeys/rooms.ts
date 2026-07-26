@@ -104,6 +104,8 @@ export const DATABASE_PATHS_FOR_ROOMS = {
   privateRoomJoinCodeRoomId: (joinCodeHash: string) =>
     `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}/${PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID}`,
 
+  privateRoomHiddenHandRoot: (roomId: string) => `${ROOT_KEYS.PRIVATE_ROOM_HIDDEN_HAND}/${roomId}`,
+
   privateRoomHiddenHand: (roomId: string, roundNumber: number) =>
     `${ROOT_KEYS.PRIVATE_ROOM_HIDDEN_HAND}/${roomId}/${roundNumber}`,
 } as const;

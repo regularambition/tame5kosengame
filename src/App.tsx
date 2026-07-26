@@ -15,9 +15,8 @@ import {SCREEN_NAMES, Screen} from "./constants/screenNames";
 import {RandomMatchScreen} from "./components/RandomMatchScreen";
 import {PrivateMatchScreen} from "./components/PrivateMatchScreen";
 import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
-import {DEFAULT_MATCH_RULES} from "./types/MatchRules";
 import {InBattleScreen} from "./components/InBattleScreen";
-import {ROLES_IN_BATTLE, RolesInBattleId} from "./constants/rolesInBattle";
+import {DEFAULT_MATCH_INFO, MatchInfo} from "./types/MatchInfo";
 
 function loadGameSettings(): GameSettings {
   const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
@@ -36,15 +35,6 @@ function loadGameSettings(): GameSettings {
   }
 }
 
-export type MatchInfo = {
-  roomId: string;
-  role: RolesInBattleId;
-  hostName: string;
-  guestName: string;
-  matchPoint: number;
-  thinkingTimeInSec: number;
-};
-
 function App() {
   const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -55,14 +45,7 @@ function App() {
     localStorage.setItem(GAME_SETTINGS_STORAGE_KEY, JSON.stringify(gameSettings));
   }, [gameSettings]);
 
-  const [matchInfo, setMatchInfo] = useState<MatchInfo>({
-    roomId: "",
-    role: ROLES_IN_BATTLE.HOST_OF_RANDOM_MATCH,
-    hostName: "",
-    guestName: "",
-    matchPoint: DEFAULT_MATCH_RULES.matchPoint,
-    thinkingTimeInSec: DEFAULT_MATCH_RULES.thinkingTimeInSec,
-  });
+  const [matchInfo, setMatchInfo] = useState<MatchInfo>(DEFAULT_MATCH_INFO);
 
   const handleStart = async () => {
     if (isAuthenticating) {
@@ -147,8 +130,11 @@ function App() {
   if (screen === SCREEN_NAMES.PRIVATE_MATCH) {
     return (
       <PrivateMatchScreen
-        gameSettings={gameSettings}
-        onBackToTop={() => setScreen(SCREEN_NAMES.TOP)}
+        matchInfo={matchInfo}
+        onBackToTop={() => {
+          setMatchInfo(DEFAULT_MATCH_INFO);
+          setScreen(SCREEN_NAMES.TOP);
+        }}
         userName={userName}
         onStartBattle={(nextMatchInfo: MatchInfo) => {
           setMatchInfo(nextMatchInfo);
@@ -159,7 +145,12 @@ function App() {
   }
 
   if (screen === SCREEN_NAMES.IN_BATTLE) {
-    return <InBattleScreen matchInfo={matchInfo}></InBattleScreen>;
+    return (
+      <InBattleScreen
+        matchInfo={matchInfo}
+        onBackToPrivateLobby={() => setScreen(SCREEN_NAMES.PRIVATE_MATCH)}
+      ></InBattleScreen>
+    );
   }
 
   return (

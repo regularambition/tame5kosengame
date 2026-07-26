@@ -5,10 +5,8 @@ import {ButtonRow} from "./ui/ButtonRow";
 import {BackArrowButton} from "./ui/BackArrowButton";
 import {ScreenBanner} from "./ui/ScreenBanner";
 import {SCREEN_NAMES} from "../constants/screenNames";
-import {GameSettings} from "../types/GameSettings";
 import {AnnotationText} from "./ui/AnnotationText";
 import {TextInput} from "./ui/TextInput";
-import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
 import {createPrivateRoom} from "../api/createPrivateRoom";
 import {enterPrivateRoom} from "../api/enterPrivateRoom";
 import {leavePrivateRoom} from "../api/leavePrivateRoom";
@@ -26,12 +24,12 @@ import {
   ROOM_STATES,
 } from "@tame5kosengame/shared";
 
-import {MatchInfo} from "../App";
 import {getTimeGapInMilliSec, retryCount} from "../retryUtility/forRetry";
-import {ROLES_IN_BATTLE, RolesInBattleId} from "../constants/rolesInBattle";
+import {isHost, isPlayerRole, ROLES_IN_BATTLE, RolesInBattleId} from "../constants/rolesInBattle";
+import {MatchInfo} from "../types/MatchInfo";
 
 type PrivateMatchScreenProps = {
-  gameSettings: GameSettings;
+  matchInfo: MatchInfo;
   onBackToTop: () => void;
   userName: string;
   onStartBattle: (nextMatchInfo: MatchInfo) => void;
@@ -279,25 +277,33 @@ function WaitingForHostOperationDiv({
 }
 
 export function PrivateMatchScreen({
-  gameSettings,
+  matchInfo,
   onBackToTop,
   userName,
   onStartBattle,
 }: PrivateMatchScreenProps) {
-  const [state, setState] = useState<StateId>(STATES.MAKE_OR_ENTER);
-  const [isPlayer, setIsPlayer] = useState<boolean>(true);
-  const [matchPoint, setMatchPoint] = useState<string>(`${DEFAULT_MATCH_RULES.matchPoint}`);
-  const [thinkingTime, setThinkingTime] = useState<string>(
-    `${DEFAULT_MATCH_RULES.thinkingTimeInSec}`,
-  );
+  const findInitialState = () => {
+    if (matchInfo.roomId.length === 0) {
+      return STATES.MAKE_OR_ENTER;
+    } else if (isHost(matchInfo.role)) {
+      return STATES.I_AM_HOST;
+    } else {
+      return STATES.I_AM_GUEST_OR_SPECTATOR;
+    }
+  };
+
+  const [state, setState] = useState<StateId>(findInitialState());
+  const [isPlayer, setIsPlayer] = useState<boolean>(isPlayerRole(matchInfo.role));
+  const [matchPoint, setMatchPoint] = useState<string>(`${matchInfo.matchPoint}`);
+  const [thinkingTime, setThinkingTime] = useState<string>(`${matchInfo.thinkingTimeInSec}`);
   const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [joinCode, setJoinCode] = useState<string>("");
   const [isEntering, setIsEntering] = useState<boolean>(false);
-  const [roomId, setRoomId] = useState<string>("");
+  const [roomId, setRoomId] = useState<string>(matchInfo.roomId);
   const [isBackProcessing, setIsBackProcessing] = useState<boolean>(false);
-  const [hostName, setHostName] = useState<string>("");
-  const [guestName, setGuestName] = useState<string>("");
+  const [hostName, setHostName] = useState<string>(matchInfo.hostName);
+  const [guestName, setGuestName] = useState<string>(matchInfo.guestName);
   const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
 
   const remainingRetryRef = useRef<number>(retryCount);
