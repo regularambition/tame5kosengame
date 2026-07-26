@@ -3,7 +3,7 @@ import {ServerValue} from "firebase-admin/database";
 
 import {db} from "../firebaseAdmin";
 
-import {isValidUserName} from "@tame5kosengame/shared";
+import {isValidUserName, USER_KEYS, DATABASE_PATHS_FOR_USERS} from "@tame5kosengame/shared";
 import type {EnsureUserProfileResponse, UpdateUserNameRequest} from "@tame5kosengame/shared";
 
 export const ensureUserProfile = onCall(async (request): Promise<EnsureUserProfileResponse> => {
@@ -13,27 +13,25 @@ export const ensureUserProfile = onCall(async (request): Promise<EnsureUserProfi
   }
 
   const uid = request.auth.uid;
-  const userRef = db.ref(`users/${uid}`);
+  const userRef = db.ref(DATABASE_PATHS_FOR_USERS.user(uid));
   const snapshot = await userRef.get();
 
   // 既に登録済み
   if (snapshot.exists()) {
     return {
-      alreadyRegistered: true,
+      userName: snapshot.child(USER_KEYS.NAME).val(),
     };
   }
 
   // 未登録なら初期データ作成
   const initialUser = {
-    uid,
-    name: "",
-    createdAt: ServerValue.TIMESTAMP,
+    [USER_KEYS.NAME]: "",
+    [USER_KEYS.CREATED_AT]: ServerValue.TIMESTAMP,
   };
 
   await userRef.set(initialUser);
-
   return {
-    alreadyRegistered: false,
+    userName: "",
   };
 });
 
@@ -49,5 +47,5 @@ export const updateUserName = onCall<UpdateUserNameRequest>(async (request) => {
     throw new HttpsError("invalid-argument", "Invalid name.");
   }
 
-  db.ref(`users/${uid}/name`).set(name);
+  db.ref(DATABASE_PATHS_FOR_USERS.userName(uid)).set(name);
 });

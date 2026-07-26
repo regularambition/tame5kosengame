@@ -1,3 +1,3 @@
 export type EnsureUserProfileResponse = {
-  alreadyRegistered: boolean;
+  userName: string;
 };

@@ -15,6 +15,8 @@ import {SCREEN_NAMES, Screen} from "./constants/screenNames";
 import {RandomMatchScreen} from "./components/RandomMatchScreen";
 import {PrivateMatchScreen} from "./components/PrivateMatchScreen";
 import {DEFAULT_GAME_SETTINGS, GameSettings, GAME_SETTINGS_STORAGE_KEY} from "./types/GameSettings";
+import {InBattleScreen} from "./components/InBattleScreen";
+import {DEFAULT_MATCH_INFO, MatchInfo} from "./types/MatchInfo";
 
 function loadGameSettings(): GameSettings {
   const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
@@ -37,11 +39,13 @@ function App() {
   const [screen, setScreen] = useState<Screen>(SCREEN_NAMES.GAME_TITLE);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState("");
-  const [isUserNameRegistered, setIsUserNameRegistered] = useState(false);
+  const [userName, setUserName] = useState("");
   const [gameSettings, setGameSettings] = useState<GameSettings>(loadGameSettings());
   useEffect(() => {
     localStorage.setItem(GAME_SETTINGS_STORAGE_KEY, JSON.stringify(gameSettings));
   }, [gameSettings]);
+
+  const [matchInfo, setMatchInfo] = useState<MatchInfo>(DEFAULT_MATCH_INFO);
 
   const handleStart = async () => {
     if (isAuthenticating) {
@@ -59,8 +63,8 @@ function App() {
       const userProfile = await ensureUserProfile();
       console.log("ensureUserProfile finished!");
       console.log(userProfile);
-      setScreen(userProfile.data.alreadyRegistered ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
-      setIsUserNameRegistered(userProfile.data.alreadyRegistered);
+      setScreen(userProfile.data.userName.length > 0 ? SCREEN_NAMES.TOP : SCREEN_NAMES.USER_NAME);
+      setUserName(userProfile.data.userName);
     } catch {
       setAuthError("認証に失敗しました。もう一度クリックしてください");
     } finally {
@@ -79,7 +83,7 @@ function App() {
 
     await updateUserName(name);
     console.log("updateUserName finished!");
-    setIsUserNameRegistered(true);
+    setUserName(name);
     setScreen(SCREEN_NAMES.TOP);
   };
 
@@ -88,13 +92,12 @@ function App() {
   }
 
   if (screen === SCREEN_NAMES.USER_NAME) {
-    console.log(`isUserNameRegistered = ${isUserNameRegistered}`);
     return (
       <UserNameScreen
-        isUpdate={isUserNameRegistered}
+        isUpdate={userName.length > 0}
         onSubmit={handleRegisterName}
         onBack={() => {
-          if (isUserNameRegistered) {
+          if (userName.length > 0) {
             setScreen(SCREEN_NAMES.TOP);
           }
         }}
@@ -127,9 +130,26 @@ function App() {
   if (screen === SCREEN_NAMES.PRIVATE_MATCH) {
     return (
       <PrivateMatchScreen
-        gameSettings={gameSettings}
-        onBackToTop={() => setScreen(SCREEN_NAMES.TOP)}
+        matchInfo={matchInfo}
+        onBackToTop={() => {
+          setMatchInfo(DEFAULT_MATCH_INFO);
+          setScreen(SCREEN_NAMES.TOP);
+        }}
+        userName={userName}
+        onStartBattle={(nextMatchInfo: MatchInfo) => {
+          setMatchInfo(nextMatchInfo);
+          setScreen(SCREEN_NAMES.IN_BATTLE);
+        }}
       />
+    );
+  }
+
+  if (screen === SCREEN_NAMES.IN_BATTLE) {
+    return (
+      <InBattleScreen
+        matchInfo={matchInfo}
+        onBackToPrivateLobby={() => setScreen(SCREEN_NAMES.PRIVATE_MATCH)}
+      ></InBattleScreen>
     );
   }
 
@@ -141,6 +161,7 @@ function App() {
       onSettingsClick={() => setScreen(SCREEN_NAMES.SETTINGS)}
       onUserNameClick={() => setScreen(SCREEN_NAMES.USER_NAME)}
       onCreditClick={() => setScreen(SCREEN_NAMES.CREDITS)}
+      userName={userName}
     />
   );
 }

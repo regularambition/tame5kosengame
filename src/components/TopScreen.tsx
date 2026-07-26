@@ -11,6 +11,7 @@ type TopScreenProps = {
   onSettingsClick: () => void;
   onUserNameClick: () => void;
   onCreditClick: () => void;
+  userName: string;
 };
 
 export function TopScreen({
@@ -20,10 +21,11 @@ export function TopScreen({
   onSettingsClick,
   onUserNameClick,
   onCreditClick,
+  userName,
 }: TopScreenProps) {
   return (
     <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering">
-      <ScreenBanner s={SCREEN_NAMES.TOP} />
+      <ScreenBanner s={SCREEN_NAMES.TOP} userName={userName} />
       <ButtonRow>
         <Button onClick={onRandomMatchClick} type="button">
           ランダムマッチ

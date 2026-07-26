@@ -1,28 +1,46 @@
-import {useState} from "react";
+import {useState, useEffect, useRef} from "react";
 
 import {Button} from "./ui/Button";
 import {ButtonRow} from "./ui/ButtonRow";
 import {BackArrowButton} from "./ui/BackArrowButton";
 import {ScreenBanner} from "./ui/ScreenBanner";
 import {SCREEN_NAMES} from "../constants/screenNames";
-import {GameSettings} from "../types/GameSettings";
 import {AnnotationText} from "./ui/AnnotationText";
 import {TextInput} from "./ui/TextInput";
-import {DEFAULT_MATCH_RULES} from "../types/MatchRules";
+import {createPrivateRoom} from "../api/createPrivateRoom";
+import {enterPrivateRoom} from "../api/enterPrivateRoom";
+import {leavePrivateRoom} from "../api/leavePrivateRoom";
+import {deletePrivateRoom} from "../api/deletePrivateRoom";
+import {watchPrivateRoomState, watchGuestName} from "../api/watchPrivateRoom";
+import {markAsReady} from "../api/markAsReady";
 
-import {isValidMatchPoint, isValidThinkingTime, VALID_NUMBER_RANGE} from "@tame5kosengame/shared";
+import {
+  isValidJoinCode,
+  isValidMatchPoint,
+  isValidThinkingTime,
+  VALID_NUMBER_RANGE,
+  isValidPushId,
+  RoomState,
+  ROOM_STATES,
+} from "@tame5kosengame/shared";
+
+import {getTimeGapInMilliSec, retryCount} from "../retryUtility/forRetry";
+import {isHost, isPlayerRole, ROLES_IN_BATTLE, RolesInBattleId} from "../constants/rolesInBattle";
+import {MatchInfo} from "../types/MatchInfo";
 
 type PrivateMatchScreenProps = {
-  gameSettings: GameSettings;
+  matchInfo: MatchInfo;
   onBackToTop: () => void;
+  userName: string;
+  onStartBattle: (nextMatchInfo: MatchInfo) => void;
 };
 
 const STATES = {
   MAKE_OR_ENTER: 0,
   MATCH_RULES_SETTING: 1,
-  WAITING_FOR_GUEST: 2,
-  ENTERING_ROOM_ID: 3,
-  WAITING_FOR_HOST_OPERATION: 4,
+  I_AM_HOST: 2,
+  ENTERING_JOIN_CODE: 3,
+  I_AM_GUEST_OR_SPECTATOR: 4,
 } as const;
 
 type StateId = (typeof STATES)[keyof typeof STATES];
@@ -79,7 +97,7 @@ function MatchRulesSettingDiv({
       <AnnotationText>
         ※部屋が建った後はDiscordやTwitter等を利用して
         <br />
-        対戦相手や観戦者に部屋IDを連携してください
+        対戦相手や観戦者に参加コード（8桁の数字列）を連携してください
       </AnnotationText>
       <p>
         決着点数（{VALID_NUMBER_RANGE.MATCH_POINT.minimum}以上
@@ -108,111 +126,324 @@ function MatchRulesSettingDiv({
 }
 
 type WaitingForGuestDivProps = {
+  joinCode: string;
   matchPoint: string;
   thinkingTime: string;
+  opponentName: string;
+  onFinishPreparing: () => void | Promise<void>;
+  isReadyToFight: boolean;
+  errorMessage: string;
 };
 
-function WaitingForGuestDiv({matchPoint, thinkingTime}: WaitingForGuestDivProps) {
+function WaitingForGuestDiv({
+  joinCode,
+  matchPoint,
+  thinkingTime,
+  opponentName,
+  onFinishPreparing,
+  isReadyToFight,
+  errorMessage,
+}: WaitingForGuestDivProps) {
+  const [copyAnnotation, setCopyAnnotation] = useState<string>("");
+
+  const handleCopy = async () => {
+    let failed = false;
+    try {
+      await navigator.clipboard.writeText(joinCode);
+    } catch (error) {
+      failed = true;
+    }
+
+    setCopyAnnotation(failed ? "コピーに失敗しました" : "コピー成功");
+    setTimeout(() => setCopyAnnotation(""), 2000); // 2秒後に戻す
+  };
+
   return (
     <Div>
       <p>
-        部屋のID：
+        参加コード：
         <br />
-        roomQWERTYUIOPASDFGHJKLZXCVBNM
+        <span>{joinCode}</span>
       </p>
-      <Button onClick={() => {}} type="button">
-        部屋IDをコピー
+      <Button onClick={handleCopy} type="button" disabled={copyAnnotation.length > 0}>
+        参加コードをコピー
       </Button>
+      {copyAnnotation.length > 0 && <AnnotationText>{copyAnnotation}</AnnotationText>}
       <p>
         ルール：
         <br />
         {matchPoint}点先取で勝利、選択は{thinkingTime}秒以内
       </p>
-      <p>相手の名前：taisennaitenonamae</p>
-      <Button onClick={() => {}} type="button">
-        試合開始
-      </Button>
+      {opponentName.length === 0 && <AnnotationText>まだ相手がいません</AnnotationText>}
+      {opponentName.length > 0 && (
+        <div>
+          <p>相手の名前：{opponentName}</p>
+          <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+            準備完了
+          </Button>
+        </div>
+      )}
+      {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
     </Div>
   );
 }
 
-type EnteringRoomIdDivProps = {
+type EnteringJoinCodeDivProps = {
   isPlayer: boolean;
-  onClickEnter: () => void;
+  onClickEnter: () => void | Promise<void>;
+  onChangeJoinCode: React.ChangeEventHandler<HTMLInputElement>;
+  isEntering: boolean;
+  errorMessage: string;
+  onChangeLeftRadio: () => void;
+  onChangeRightRadio: () => void;
 };
 
-function EnteringRoomIdDiv({isPlayer, onClickEnter}: EnteringRoomIdDivProps) {
+function EnteringJoinCodeDiv({
+  isPlayer,
+  onClickEnter,
+  onChangeJoinCode,
+  isEntering,
+  errorMessage,
+  onChangeLeftRadio,
+  onChangeRightRadio,
+}: EnteringJoinCodeDivProps) {
   return (
     <Div>
       <p>役割の選択</p>
       <div className="settings-radio-group">
         <label className="settings-radio-label">
-          <input
-            checked={isPlayer}
-            // onChange={() => handleChangeHighlightHand(true)}
-            type="radio"
-          />
+          <input checked={isPlayer} onChange={onChangeLeftRadio} type="radio" />
           対戦相手
         </label>
         <label className="settings-radio-label">
-          <input
-            checked={!isPlayer}
-            // onChange={() => handleChangeHighlightHand(false)}
-            type="radio"
-          />
+          <input checked={!isPlayer} onChange={onChangeRightRadio} type="radio" />
           観戦者
         </label>
       </div>
-      <p>入る部屋のIDを入力</p>
-      <TextInput></TextInput>
-      <Button onClick={onClickEnter} type="button">
+      <p>入る部屋の参加コードを入力（8桁の半角数字）</p>
+      <TextInput onChange={onChangeJoinCode} disabled={isEntering}></TextInput>
+      <Button onClick={onClickEnter} type="button" disabled={isEntering}>
         この部屋に入る
       </Button>
+      {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
     </Div>
   );
 }
 
 type WaitingForHostOperationDivProps = {
   isPlayer: boolean;
+  hostName: string;
+  guestName?: string;
+  matchPoint: string;
+  thinkingTime: string;
+  onFinishPreparing: () => void | Promise<void>;
+  isReadyToFight: boolean;
+  errorMessage: string;
 };
 
-function WaitingForHostOperationDiv({isPlayer}: WaitingForHostOperationDivProps) {
+function WaitingForHostOperationDiv({
+  isPlayer,
+  hostName,
+  guestName = "",
+  matchPoint,
+  thinkingTime,
+  onFinishPreparing,
+  isReadyToFight,
+  errorMessage,
+}: WaitingForHostOperationDivProps) {
   return (
     <Div>
       <p>
-        ルール：
+        部屋のホスト： {hostName}
         <br />
-        {5}点先取で勝利、選択は{5}秒以内
+        ルール： {matchPoint}点先取で勝利、選択は{thinkingTime}秒以内
       </p>
-      <p>
-        あなたの役割：{isPlayer ? "対戦相手" : "観戦者"}
-        <br />
-        ホストの操作をお待ちください
-      </p>
+      <p>あなたの役割：{isPlayer ? "対戦相手" : "観戦者"}</p>
+      {isPlayer && (
+        <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+          準備完了
+        </Button>
+      )}
+      {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
+      {!isPlayer && (
+        <p>
+          ホストの対戦相手：{guestName}
+          <br />
+          試合開始までお待ち下さい
+        </p>
+      )}
     </Div>
   );
 }
 
-export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScreenProps) {
-  const [state, setState] = useState<StateId>(STATES.MAKE_OR_ENTER);
-  const [isPlayer, setIsPlayer] = useState<boolean>(true);
-  const [matchPoint, setMatchPoint] = useState<string>(`${DEFAULT_MATCH_RULES.matchPoint}`);
-  const [thinkingTime, setThinkingTime] = useState<string>(
-    `${DEFAULT_MATCH_RULES.thinkingTimeInSec}`,
-  );
+export function PrivateMatchScreen({
+  matchInfo,
+  onBackToTop,
+  userName,
+  onStartBattle,
+}: PrivateMatchScreenProps) {
+  const findInitialState = () => {
+    if (matchInfo.roomId.length === 0) {
+      return STATES.MAKE_OR_ENTER;
+    } else if (isHost(matchInfo.role)) {
+      return STATES.I_AM_HOST;
+    } else {
+      return STATES.I_AM_GUEST_OR_SPECTATOR;
+    }
+  };
+
+  const [state, setState] = useState<StateId>(findInitialState());
+  const [isPlayer, setIsPlayer] = useState<boolean>(isPlayerRole(matchInfo.role));
+  const [matchPoint, setMatchPoint] = useState<string>(`${matchInfo.matchPoint}`);
+  const [thinkingTime, setThinkingTime] = useState<string>(`${matchInfo.thinkingTimeInSec}`);
   const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [joinCode, setJoinCode] = useState<string>("");
+  const [isEntering, setIsEntering] = useState<boolean>(false);
+  const [roomId, setRoomId] = useState<string>(matchInfo.roomId);
+  const [isBackProcessing, setIsBackProcessing] = useState<boolean>(false);
+  const [hostName, setHostName] = useState<string>(matchInfo.hostName);
+  const [guestName, setGuestName] = useState<string>(matchInfo.guestName);
+  const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
 
-  const onClickBackArrowButton = () => {
+  const remainingRetryRef = useRef<number>(retryCount);
+  const timeoutIdRef = useRef<number | null>(null);
+
+  function buildMatchInfo(): MatchInfo {
+    let role: RolesInBattleId = ROLES_IN_BATTLE.HOST_OF_PRIVATE_MATCH;
+    if (state === STATES.I_AM_HOST) {
+    } else if (isPlayer) {
+      role = ROLES_IN_BATTLE.GUEST_OF_PRIVATE_MATCH;
+    } else {
+      role = ROLES_IN_BATTLE.SPECTATOR;
+    }
+
+    return {
+      roomId: roomId,
+      role: role,
+      hostName: hostName,
+      guestName: guestName,
+      matchPoint: parseInt(matchPoint),
+      thinkingTimeInSec: parseInt(thinkingTime),
+    };
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timeoutIdRef.current !== null) {
+        window.clearTimeout(timeoutIdRef.current);
+        timeoutIdRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const watchPrivateRoomStateArg = (st: RoomState) => {
+      if (st === ROOM_STATES.CLOSED) {
+        alert("部屋が削除されました");
+        setRoomId("");
+        setJoinCode("");
+        setHostName("");
+        setGuestName("");
+        setIsReadyToFight(false);
+        setState(STATES.MAKE_OR_ENTER);
+      }
+    };
+
+    if (state === STATES.I_AM_HOST) {
+      const unsubscribeGuestName = watchGuestName(roomId, (s: string) => {
+        setGuestName(s ?? "");
+        setIsReadyToFight(false);
+      });
+
+      const unsubscribeState = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+      return () => {
+        unsubscribeGuestName();
+        unsubscribeState();
+      };
+    } else if (state === STATES.I_AM_GUEST_OR_SPECTATOR) {
+      if (isPlayer) {
+        const unsubscribe = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+        return unsubscribe;
+      } else {
+        const unsubscribeGuestName = watchGuestName(roomId, (s: string) => {
+          setGuestName(s ?? "");
+        });
+
+        const unsubscribeState = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+        return () => {
+          unsubscribeGuestName();
+          unsubscribeState();
+        };
+      }
+    } else {
+      return;
+    }
+  }, [roomId, state]);
+
+  useEffect(() => {
+    if (state !== STATES.I_AM_HOST && state !== STATES.I_AM_GUEST_OR_SPECTATOR) {
+      return;
+    }
+
+    const watchPrivateRoomStateArg = (st: RoomState) => {
+      if (st === ROOM_STATES.PLAYING) {
+        onStartBattle(buildMatchInfo());
+      }
+    };
+
+    const unsubscribe = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+    return unsubscribe;
+  }, [roomId, state, isPlayer, userName, hostName, guestName, matchPoint, thinkingTime]);
+
+  const onClickBackArrowButton = async () => {
+    setIsBackProcessing(true);
     if (state === STATES.MAKE_OR_ENTER) {
       onBackToTop();
-    } else if (state === STATES.MATCH_RULES_SETTING || state === STATES.ENTERING_ROOM_ID) {
+    } else if (state === STATES.MATCH_RULES_SETTING || state === STATES.ENTERING_JOIN_CODE) {
       setState(STATES.MAKE_OR_ENTER);
-    } else if (state === STATES.WAITING_FOR_GUEST) {
+    } else if (state === STATES.I_AM_HOST) {
+      if (!isValidPushId(roomId)) {
+        alert("部屋IDに不正な値が入っています");
+        setIsBackProcessing(false);
+        return;
+      }
+
+      try {
+        await deletePrivateRoom(roomId);
+      } catch (error) {
+        console.log(error);
+        alert("部屋の解散に失敗しました");
+        setIsBackProcessing(false);
+        return;
+      }
+      setRoomId("");
+      setHostName("");
+      setGuestName("");
+      setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
-    } else if (state === STATES.WAITING_FOR_HOST_OPERATION) {
+    } else if (state === STATES.I_AM_GUEST_OR_SPECTATOR) {
+      if (!isValidPushId(roomId)) {
+        alert("部屋IDに不正な値が入っています");
+        setIsBackProcessing(false);
+        return;
+      }
+
+      try {
+        await leavePrivateRoom(isPlayer, roomId);
+      } catch (error) {
+        alert("退出に失敗しました");
+        setIsBackProcessing(false);
+        return;
+      }
+
+      setRoomId("");
+      setHostName("");
+      setGuestName("");
+      setIsReadyToFight(false);
       setState(STATES.MAKE_OR_ENTER);
     }
+    setIsBackProcessing(false);
   };
 
   const handleChangeMatchPoint: React.ChangeEventHandler<HTMLInputElement> = (event) => {
@@ -234,19 +465,106 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
       setIsCreatingRoom(false);
       return;
     }
+
+    try {
+      const resp = await createPrivateRoom(matchPoint, thinkingTime, userName);
+      const {joinCode, roomId} = resp.data;
+      setJoinCode(joinCode);
+      console.log(`roomId = ${roomId}`);
+      setRoomId(roomId);
+    } catch (error) {
+      setErrorMessage("部屋の作成に失敗しました");
+      setIsCreatingRoom(false);
+      return;
+    }
+
     setErrorMessage("");
-    setState(STATES.WAITING_FOR_GUEST);
+    setState(STATES.I_AM_HOST);
+    setHostName(userName);
     setIsCreatingRoom(false);
+  };
+
+  const handleChangeJoinCode: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const nextJoinCode = event.target.value;
+    setJoinCode(nextJoinCode);
+    setErrorMessage("");
+  };
+
+  const handleEnteringRoom = async () => {
+    setIsEntering(true);
+    if (!isValidJoinCode(joinCode)) {
+      setErrorMessage("参加コードの入力に不正な値が渡されています");
+      setIsEntering(false);
+      return;
+    }
+
+    try {
+      const resp = await enterPrivateRoom(joinCode, isPlayer, userName);
+      const {roomId, hostName, matchPoint, thinkingTime} = resp.data;
+      console.log(`roomId = ${roomId}`);
+      console.log(`hostName = ${hostName}`);
+      setRoomId(roomId);
+      setMatchPoint(matchPoint);
+      setThinkingTime(thinkingTime);
+      setHostName(hostName);
+    } catch (error) {
+      setErrorMessage("部屋が見つかりませんでした");
+      setIsEntering(false);
+      return;
+    }
+
+    setErrorMessage("");
+    setState(STATES.I_AM_GUEST_OR_SPECTATOR);
+    if (isPlayer) {
+      setGuestName(userName);
+    }
+    setIsEntering(false);
+  };
+
+  const handleFinishPreparing = async () => {
+    if (isReadyToFight) {
+      return;
+    }
+
+    setIsReadyToFight(true);
+    setErrorMessage("");
+
+    try {
+      await markAsReady(roomId);
+    } catch (e) {
+      --remainingRetryRef.current;
+      console.log(`e = ${e}`);
+      if (remainingRetryRef.current === 0) {
+        setIsReadyToFight(false);
+        setErrorMessage("準備完了通知に失敗しました");
+      } else {
+        const timeGap = getTimeGapInMilliSec();
+        if (timeoutIdRef.current !== null) {
+          window.clearTimeout(timeoutIdRef.current);
+        }
+        timeoutIdRef.current = window.setTimeout(handleFinishPreparing, timeGap);
+        return;
+      }
+    }
+
+    if (timeoutIdRef.current !== null) {
+      window.clearTimeout(timeoutIdRef.current);
+    }
+    timeoutIdRef.current = null;
+    remainingRetryRef.current = retryCount;
   };
 
   return (
     <main className="screen not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.PRIVATE_MATCH} />
-      <BackArrowButton onClick={onClickBackArrowButton} />
+      <BackArrowButton
+        onClick={onClickBackArrowButton}
+        disabled={isBackProcessing || isCreatingRoom || isEntering || isReadyToFight}
+      />
       {state === STATES.MAKE_OR_ENTER && (
         <MakeOrEnterDiv
           onClickMake={() => setState(STATES.MATCH_RULES_SETTING)}
-          onClickEnter={() => setState(STATES.ENTERING_ROOM_ID)}
+          onClickEnter={() => setState(STATES.ENTERING_JOIN_CODE)}
         />
       )}
       {state === STATES.MATCH_RULES_SETTING && (
@@ -260,17 +578,39 @@ export function PrivateMatchScreen({gameSettings, onBackToTop}: PrivateMatchScre
           errorMessage={errorMessage}
         />
       )}
-      {state === STATES.WAITING_FOR_GUEST && (
-        <WaitingForGuestDiv matchPoint={matchPoint} thinkingTime={thinkingTime} />
+      {state === STATES.I_AM_HOST && (
+        <WaitingForGuestDiv
+          joinCode={joinCode}
+          matchPoint={matchPoint}
+          thinkingTime={thinkingTime}
+          opponentName={guestName}
+          onFinishPreparing={handleFinishPreparing}
+          isReadyToFight={isReadyToFight}
+          errorMessage={errorMessage}
+        />
       )}
-      {state === STATES.ENTERING_ROOM_ID && (
-        <EnteringRoomIdDiv
+      {state === STATES.ENTERING_JOIN_CODE && (
+        <EnteringJoinCodeDiv
           isPlayer={isPlayer}
-          onClickEnter={() => setState(STATES.WAITING_FOR_HOST_OPERATION)}
-        ></EnteringRoomIdDiv>
+          onClickEnter={handleEnteringRoom}
+          onChangeJoinCode={handleChangeJoinCode}
+          isEntering={isEntering}
+          errorMessage={errorMessage}
+          onChangeLeftRadio={() => setIsPlayer(true)}
+          onChangeRightRadio={() => setIsPlayer(false)}
+        ></EnteringJoinCodeDiv>
       )}
-      {state === STATES.WAITING_FOR_HOST_OPERATION && (
-        <WaitingForHostOperationDiv isPlayer={isPlayer}></WaitingForHostOperationDiv>
+      {state === STATES.I_AM_GUEST_OR_SPECTATOR && (
+        <WaitingForHostOperationDiv
+          isPlayer={isPlayer}
+          hostName={hostName}
+          guestName={guestName}
+          matchPoint={matchPoint}
+          thinkingTime={thinkingTime}
+          onFinishPreparing={handleFinishPreparing}
+          isReadyToFight={isReadyToFight}
+          errorMessage={errorMessage}
+        ></WaitingForHostOperationDiv>
       )}
     </main>
   );
