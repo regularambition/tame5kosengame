@@ -12,6 +12,7 @@ import {
   HAND_IDS,
   findManaGain,
   WINNER_DETECTION_RESULT,
+  canSelectHand,
 } from "@tame5kosengame/shared";
 import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
 import {ServerValue} from "firebase-admin/database";
@@ -110,7 +111,7 @@ export const submitHand = onCall<SubmitHandRequest>(
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
 
-    const {roomId, hand, roundNumber} = request.data;
+    const {roomId, hand, roundNumber, myMana} = request.data;
     if (!isValidPushId(roomId)) {
       throw new HttpsError("invalid-argument", "Invalid room ID.");
     }
@@ -138,31 +139,27 @@ export const submitHand = onCall<SubmitHandRequest>(
     }
 
     // チート対策
-    // const actualHostMana = roomSnapshot
-    //   .child(GENERAL_ROOM_KEYS.HOST)
-    //   .child(GENERAL_ROOM_KEYS.MANA)
-    //   .val();
-    // const actualGuestMana = roomSnapshot
-    //   .child(GENERAL_ROOM_KEYS.GUEST)
-    //   .child(GENERAL_ROOM_KEYS.MANA)
-    //   .val();
-    // if (typeof actualHostMana !== "number" || typeof actualGuestMana !== "number") {
-    //   throw new HttpsError("internal", "Database lacks mana.");
-    // }
-    // const actualHostScore = roomSnapshot
-    //   .child(GENERAL_ROOM_KEYS.HOST)
-    //   .child(GENERAL_ROOM_KEYS.SCORE)
-    //   .val();
-    // const actualGuestScore = roomSnapshot
-    //   .child(GENERAL_ROOM_KEYS.GUEST)
-    //   .child(GENERAL_ROOM_KEYS.SCORE)
-    //   .val();
-    // if (typeof actualHostScore !== "number" || typeof actualGuestScore !== "number") {
-    //   throw new HttpsError("internal", "Database lacks score.");
-    // }
-
-    // // const actualMana = uid === hostUid ? actualHostMana : actualGuestMana;
-    // // const actualScore = uid === hostUid ? actualHostScore : actualGuestScore;
+    const actualHostMana = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.HOST)
+      .child(GENERAL_ROOM_KEYS.MANA)
+      .val();
+    const actualGuestMana = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.GUEST)
+      .child(GENERAL_ROOM_KEYS.MANA)
+      .val();
+    if (typeof actualHostMana !== "number" || typeof actualGuestMana !== "number") {
+      throw new HttpsError("internal", "Database lacks mana.");
+    }
+    const actualMana = uid === hostUid ? actualHostMana : actualGuestMana;
+    if (myMana !== actualMana || !canSelectHand(hand, actualMana)) {
+      // クライアント側がローカルでstateとして管理しているマナの残数を書き換えて
+      // 本来ならば選択不可能な手を提出している場合はチート行為なので書き込ませない
+      throw new HttpsError(
+        "cancelled",
+        "!!!!! CHEATING IS DETECTED !!!!!\n" +
+          `${myMana !== actualMana ? "remaining mana is tampered." : "hand is illegaly selected."}`,
+      );
+    }
 
     const submissionRef = db.ref(
       DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHand(roomId, roundNumber),

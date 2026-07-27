@@ -4,6 +4,7 @@ export type SubmitHandRequest = {
   roomId: string;
   hand: HandId;
   roundNumber: number;
+  myMana: number;
 };
 
 export type SubmitHandResponse = {

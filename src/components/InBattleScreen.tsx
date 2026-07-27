@@ -57,6 +57,16 @@ import {watchBackToLobbyAt} from "../api/inBattle/watchBackToLobbyAt";
 import {watchPrivateRoomState} from "../api/watchPrivateRoom";
 import {MatchInfo} from "../types/MatchInfo";
 
+// ↓↓↓ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↓↓↓
+declare global {
+  interface Window {
+    setHostMana?: React.Dispatch<React.SetStateAction<number>>;
+
+    setGuestMana?: React.Dispatch<React.SetStateAction<number>>;
+  }
+}
+// ↑↑↑ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↑↑↑
+
 type MainDivProps = {
   children: ReactNode;
   className?: string;
@@ -412,7 +422,7 @@ function SelectingPhaseDiv({matchInfo, roundNumber, mana}: SelectingPhaseDivProp
       if (!isValidPushId(matchInfo.roomId)) {
         throw new Error();
       }
-      await submitHand(matchInfo.roomId, hand, roundNumber);
+      await submitHand(matchInfo.roomId, hand, roundNumber, mana);
     },
   };
 
@@ -698,6 +708,23 @@ export function InBattleScreen({matchInfo, onBackToPrivateLobby}: InBattleScreen
   useEffect(() => {
     return watchGuestScore(matchInfo.roomId, setGuestScore, isPrivateMatch(matchInfo.role));
   }, []);
+
+  // ↓↓↓ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↓↓↓
+  useEffect(() => {
+    window.setHostMana = (mana) => {
+      setHostMana(mana);
+    };
+
+    window.setGuestMana = (mana) => {
+      setGuestMana(mana);
+    };
+
+    return () => {
+      delete window.setHostMana;
+      delete window.setGuestMana;
+    };
+  }, []);
+  // ↑↑↑ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↑↑↑
 
   const [spectatorCount, setSpectatorCount] = useState<number>(0);
 
