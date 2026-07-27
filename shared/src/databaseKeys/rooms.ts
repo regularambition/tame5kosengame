@@ -29,6 +29,7 @@ export const GENERAL_ROOM_KEYS = {
   RESOLVED_AT: "resolvedAt",
   NEXT_PHASE_AT: "nextPhaseAt",
   CHEATER: "cheater",
+  RESIGNER: "resigner",
 } as const;
 
 export const PRIVATE_ROOM_KEYS = {
@@ -86,6 +87,9 @@ export const DATABASE_PATHS_FOR_ROOMS = {
 
   cheater: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.CHEATER}`,
+
+  resigner: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.RESIGNER}`,
 
   backToLobbyAt: (roomId: string) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, true)}/${PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT}`,

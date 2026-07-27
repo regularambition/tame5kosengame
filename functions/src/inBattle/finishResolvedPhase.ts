@@ -6,6 +6,8 @@ import {
   GAME_PHASES,
   GENERAL_ROOM_KEYS,
   INITIAL_VALUES_IN_BATTLE,
+  isCheaterDetectionResult,
+  isResignerDetectionResult,
   PRIVATE_ROOM_KEYS,
   WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
@@ -76,10 +78,12 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
         return room;
       }
 
-      // すでに古いタスクなら何もしない
+      // すでに古いタスク（チート対策処理や降参が割り込んでいる場合も含む）なら何もしない
       if (
         game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED ||
-        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
+        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber ||
+        isCheaterDetectionResult(game[GENERAL_ROOM_KEYS.CHEATER]) ||
+        isResignerDetectionResult(game[GENERAL_ROOM_KEYS.RESIGNER])
       ) {
         return room;
       }
@@ -174,6 +178,14 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
 
     if (!finalHost || !finalGuest || !finalGame || !finalRules || !finalResolvedRound) {
       throw new HttpsError("failed-precondition", "Database is incomplete. (after transaction)");
+    }
+
+    if (
+      isCheaterDetectionResult(finalGame[GENERAL_ROOM_KEYS.CHEATER]) ||
+      isResignerDetectionResult(finalGame[GENERAL_ROOM_KEYS.RESIGNER])
+    ) {
+      // チート対策処理や降参が先に割り込んできている場合はすぐさま終了
+      return;
     }
 
     const finalHostMana = finalHost[GENERAL_ROOM_KEYS.MANA];

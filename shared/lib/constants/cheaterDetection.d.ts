@@ -3,3 +3,4 @@ export declare const CHEATER_DETECTION_RESULT: {
     readonly GUEST_USED_CHEATING: "### guest used cheating ###";
 };
 export type CheaterDetectionResultId = (typeof CHEATER_DETECTION_RESULT)[keyof typeof CHEATER_DETECTION_RESULT];
+export declare function isCheaterDetectionResult(value: unknown): value is CheaterDetectionResultId;

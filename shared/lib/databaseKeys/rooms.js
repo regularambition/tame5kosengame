@@ -28,6 +28,7 @@ export const GENERAL_ROOM_KEYS = {
     RESOLVED_AT: "resolvedAt",
     NEXT_PHASE_AT: "nextPhaseAt",
     CHEATER: "cheater",
+    RESIGNER: "resigner",
 };
 export const PRIVATE_ROOM_KEYS = {
     SPECTATORS: "spectators",
@@ -55,6 +56,7 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     handSubmissionDeadline: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.HAND_SUBMISSION_DEADLINE}`,
     finalWinnerOfMatch: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.FINAL_WINNER_OF_MATCH}`,
     cheater: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.CHEATER}`,
+    resigner: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.RESIGNER}`,
     backToLobbyAt: (roomId) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, true)}/${PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT}`,
     resolvedRound: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.RESOLVED_ROUND}`,
     resolvedHostHand: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,

@@ -6,3 +6,11 @@ export const WINNER_DETECTION_RESULT = {
 
 export type WinnerDetectionResultId =
   (typeof WINNER_DETECTION_RESULT)[keyof typeof WINNER_DETECTION_RESULT];
+
+export function isWinnerDetectionResult(value: unknown): value is WinnerDetectionResultId {
+  return (
+    value === WINNER_DETECTION_RESULT.DRAW ||
+    value === WINNER_DETECTION_RESULT.HOST_WON ||
+    value === WINNER_DETECTION_RESULT.GUEST_WON
+  );
+}
