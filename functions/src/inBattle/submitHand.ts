@@ -157,11 +157,6 @@ export const submitHand = onCall<SubmitHandRequest>(
     if (myMana !== actualMana || !canSelectHand(hand, actualMana)) {
       // クライアント側がローカルでstateとして管理しているマナの残数を書き換えて
       // 本来ならば選択不可能な手を提出している場合はチート行為なのでその時点で負けとする
-      // throw new HttpsError(
-      //   "cancelled",
-      //   "!!!!! CHEATING IS DETECTED !!!!!\n" +
-      //     `${myMana !== actualMana ? "remaining mana is tampered." : "hand is illegaly selected."}`,
-      // );
 
       const result = await roomRef.transaction((room) => {
         if (room === null || room[GENERAL_ROOM_KEYS.STATE] === null) {
