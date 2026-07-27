@@ -28,6 +28,7 @@ export const GENERAL_ROOM_KEYS = {
   WINNER_OF_ROUND: "winnerOfRound",
   RESOLVED_AT: "resolvedAt",
   NEXT_PHASE_AT: "nextPhaseAt",
+  CHEATER: "cheater",
 } as const;
 
 export const PRIVATE_ROOM_KEYS = {
@@ -82,6 +83,9 @@ export const DATABASE_PATHS_FOR_ROOMS = {
 
   finalWinnerOfMatch: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.FINAL_WINNER_OF_MATCH}`,
+
+  cheater: (roomId: string, isPrivateMatch: boolean = false) =>
+    `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.CHEATER}`,
 
   backToLobbyAt: (roomId: string) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, true)}/${PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT}`,

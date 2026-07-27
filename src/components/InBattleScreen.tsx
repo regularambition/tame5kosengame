@@ -18,6 +18,8 @@ import {
   WINNER_DETECTION_RESULT,
   canSelectHand,
   ROOM_STATES,
+  CheaterDetectionResultId,
+  CHEATER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 
 import {CenterAligningDiv} from "./ui/CenterAligningDiv";
@@ -56,16 +58,7 @@ import {Unsubscribe} from "firebase/database";
 import {watchBackToLobbyAt} from "../api/inBattle/watchBackToLobbyAt";
 import {watchPrivateRoomState} from "../api/watchPrivateRoom";
 import {MatchInfo} from "../types/MatchInfo";
-
-// ↓↓↓ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↓↓↓
-declare global {
-  interface Window {
-    setHostMana?: React.Dispatch<React.SetStateAction<number>>;
-
-    setGuestMana?: React.Dispatch<React.SetStateAction<number>>;
-  }
-}
-// ↑↑↑ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↑↑↑
+import {watchCheater} from "../api/inBattle/watchCheater";
 
 type MainDivProps = {
   children: ReactNode;
@@ -519,7 +512,6 @@ function SelectingPhaseDiv({matchInfo, roundNumber, mana}: SelectingPhaseDivProp
           />
         </div>
       )}
-      {isPlayerRole(matchInfo.role) && <Button>確定</Button>}
       {errorMsg.length > 0 && <AnnotationText>{errorMsg}</AnnotationText>}
       {isSpectator(matchInfo.role) && <p>選択が揃うまでお待ち下さい</p>}
     </MainDiv>
@@ -609,6 +601,12 @@ function FinishedPhaseDiv({
     );
   }, []);
 
+  const [cheater, setCheater] = useState<CheaterDetectionResultId | undefined>(undefined);
+
+  useEffect(() => {
+    return watchCheater(matchInfo.roomId, setCheater, isPrivateMatch(matchInfo.role));
+  }, []);
+
   if (isPrivateMatch(matchInfo.role)) {
     useEffect(() => {
       return watchPrivateRoomState(matchInfo.roomId, (st) => {
@@ -624,22 +622,26 @@ function FinishedPhaseDiv({
     : 0;
   const remainingTimeInSec = remainingMs === null ? null : toRemainingTimeInSec(remainingMs);
 
-  const findWinner = (matchInfo: MatchInfo) => {
+  const findResultUserForUi = (
+    matchInfo: MatchInfo,
+    comparedStateValue: WinnerDetectionResultId | CheaterDetectionResultId | undefined,
+    hostSideConstant: WinnerDetectionResultId | CheaterDetectionResultId,
+  ) => {
     let res = "";
-    if (finalWinnerOfMatch === WINNER_DETECTION_RESULT.HOST_WON) {
+    if (comparedStateValue === hostSideConstant) {
       if (isHost(matchInfo.role)) {
-        res += "YOU";
+        res += "あなた";
       } else if (isGuest(matchInfo.role)) {
-        res += "OPPONENT";
+        res += "対戦相手";
       } else {
-        res += "HOST";
+        res += "ホスト";
       }
     } else if (isGuest(matchInfo.role)) {
-      res += "YOU";
+      res += "あなた";
     } else if (isHost(matchInfo.role)) {
-      res += "OPPONENT";
+      res += "対戦相手";
     } else {
-      res += "GUEST";
+      res += "ゲスト";
     }
 
     return res;
@@ -650,7 +652,16 @@ function FinishedPhaseDiv({
       <p className="final-score">
         {leftScore} - {rightScore}
       </p>
-      <p className="result-description">WINNER: {findWinner(matchInfo)}</p>
+      <p className="result-description">
+        結果：{findResultUserForUi(matchInfo, finalWinnerOfMatch, WINNER_DETECTION_RESULT.HOST_WON)}
+        の勝利
+      </p>
+      {cheater !== undefined && (
+        <AnnotationText>
+          {findResultUserForUi(matchInfo, cheater, CHEATER_DETECTION_RESULT.HOST_USED_CHEATING)}
+          がチートを使用しました
+        </AnnotationText>
+      )}
       {isPrivateMatch(matchInfo.role) && (
         <p>
           {remainingTimeInSec === null
@@ -708,23 +719,6 @@ export function InBattleScreen({matchInfo, onBackToPrivateLobby}: InBattleScreen
   useEffect(() => {
     return watchGuestScore(matchInfo.roomId, setGuestScore, isPrivateMatch(matchInfo.role));
   }, []);
-
-  // ↓↓↓ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↓↓↓
-  useEffect(() => {
-    window.setHostMana = (mana) => {
-      setHostMana(mana);
-    };
-
-    window.setGuestMana = (mana) => {
-      setGuestMana(mana);
-    };
-
-    return () => {
-      delete window.setHostMana;
-      delete window.setGuestMana;
-    };
-  }, []);
-  // ↑↑↑ チート対策処理がうまく実行されているかを見るためだけのコードなので検証が終わったら消す ↑↑↑
 
   const [spectatorCount, setSpectatorCount] = useState<number>(0);
 

@@ -26,6 +26,7 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly WINNER_OF_ROUND: "winnerOfRound";
     readonly RESOLVED_AT: "resolvedAt";
     readonly NEXT_PHASE_AT: "nextPhaseAt";
+    readonly CHEATER: "cheater";
 };
 export declare const PRIVATE_ROOM_KEYS: {
     readonly SPECTATORS: "spectators";
@@ -52,6 +53,7 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly gamePhase: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly handSubmissionDeadline: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly finalWinnerOfMatch: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly cheater: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly backToLobbyAt: (roomId: string) => string;
     readonly resolvedRound: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly resolvedHostHand: (roomId: string, isPrivateMatch?: boolean) => string;

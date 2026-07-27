@@ -22,7 +22,10 @@ function makeGoBackToPrivateLobbyTaskId(roomId: string, nextPhaseAt: number): st
     .digest("hex");
 }
 
-async function enqueueGoBackToPrivateLobby(roomId: string, backToLobbyAt: number): Promise<void> {
+export async function enqueueGoBackToPrivateLobby(
+  roomId: string,
+  backToLobbyAt: number,
+): Promise<void> {
   const queue = getFunctions().taskQueue(buildTaskPath("goBackToPrivateLobby"));
 
   try {

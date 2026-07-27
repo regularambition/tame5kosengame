@@ -13,16 +13,19 @@ import {
   findManaGain,
   WINNER_DETECTION_RESULT,
   canSelectHand,
+  PRIVATE_ROOM_KEYS,
+  CHEATER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
 import {ServerValue} from "firebase-admin/database";
-import {findNextPhaseAt} from "./timestampGenerator";
+import {findBackToLobbyAt, findNextPhaseAt} from "./timestampGenerator";
 
 import {createHash} from "crypto";
 import {getFunctions} from "firebase-admin/functions";
 import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
 import {FinishResolvedPhaseTask} from "../contracts";
 import {ALGORITHM_NAME} from "../config";
+import {enqueueGoBackToPrivateLobby} from "./finishResolvedPhase";
 
 function findWinnerOfRound(hostHand: HandId, guestHand: HandId) {
   if (hostHand === guestHand) {
@@ -153,12 +156,120 @@ export const submitHand = onCall<SubmitHandRequest>(
     const actualMana = uid === hostUid ? actualHostMana : actualGuestMana;
     if (myMana !== actualMana || !canSelectHand(hand, actualMana)) {
       // クライアント側がローカルでstateとして管理しているマナの残数を書き換えて
-      // 本来ならば選択不可能な手を提出している場合はチート行為なので書き込ませない
-      throw new HttpsError(
-        "cancelled",
-        "!!!!! CHEATING IS DETECTED !!!!!\n" +
-          `${myMana !== actualMana ? "remaining mana is tampered." : "hand is illegaly selected."}`,
-      );
+      // 本来ならば選択不可能な手を提出している場合はチート行為なのでその時点で負けとする
+      // throw new HttpsError(
+      //   "cancelled",
+      //   "!!!!! CHEATING IS DETECTED !!!!!\n" +
+      //     `${myMana !== actualMana ? "remaining mana is tampered." : "hand is illegaly selected."}`,
+      // );
+
+      const result = await roomRef.transaction((room) => {
+        if (room === null || room[GENERAL_ROOM_KEYS.STATE] === null) {
+          return room;
+        }
+
+        if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
+          return;
+        }
+
+        const game = room[GENERAL_ROOM_KEYS.GAME];
+        if (
+          game === null ||
+          game[GENERAL_ROOM_KEYS.PHASE] === null ||
+          game[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+        ) {
+          return room;
+        }
+
+        if (game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.FINISHED) {
+          // 結果を冪等にする
+          return room;
+        }
+
+        if (
+          game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
+          game[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
+        ) {
+          return;
+        }
+
+        game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.FINISHED;
+        if (uid === hostUid) {
+          game[GENERAL_ROOM_KEYS.CHEATER] = CHEATER_DETECTION_RESULT.HOST_USED_CHEATING;
+          game[GENERAL_ROOM_KEYS.FINAL_WINNER_OF_MATCH] = WINNER_DETECTION_RESULT.GUEST_WON;
+        } else {
+          game[GENERAL_ROOM_KEYS.CHEATER] = CHEATER_DETECTION_RESULT.GUEST_USED_CHEATING;
+          game[GENERAL_ROOM_KEYS.FINAL_WINNER_OF_MATCH] = WINNER_DETECTION_RESULT.HOST_WON;
+        }
+        game[PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT] = findBackToLobbyAt();
+
+        return room;
+      });
+      if (!result.committed) {
+        throw new HttpsError("failed-precondition", "Phase updating failed (in cheating case).");
+      }
+      if (!result.snapshot.exists()) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Private room not found (in cheating case). (after transaction)",
+        );
+      }
+
+      const finalRoom = result.snapshot.val();
+      const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
+      const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
+      const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
+      const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
+      if (
+        !finalHost ||
+        !finalGuest ||
+        !finalGame ||
+        !finalGame[GENERAL_ROOM_KEYS.PHASE] ||
+        finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Private room data is incomplete (in cheating case).",
+        );
+      }
+      if (finalState !== ROOM_STATES.PLAYING) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Private room is not playing (in cheating case).",
+        );
+      }
+
+      const finalPlayer =
+        finalHost[GENERAL_ROOM_KEYS.UID] === uid
+          ? finalHost
+          : finalGuest[GENERAL_ROOM_KEYS.UID] === uid
+            ? finalGuest
+            : null;
+      if (finalPlayer === null) {
+        throw new HttpsError("permission-denied", "User is not a player (in cheating case).");
+      }
+      if (finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Request is not latest round (in cheating case).",
+        );
+      }
+      if (finalGame[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.FINISHED) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Failed to move to finished phase (in cheating case).",
+        );
+      }
+
+      const finalBackToLobbyAt = finalGame[PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT];
+
+      if (typeof finalBackToLobbyAt !== "number") {
+        throw new HttpsError("internal", "backToLobbyAt is missing (in cheating case).");
+      }
+
+      await enqueueGoBackToPrivateLobby(roomId, finalBackToLobbyAt);
+
+      return {hasSucceeded: true};
     }
 
     const submissionRef = db.ref(
