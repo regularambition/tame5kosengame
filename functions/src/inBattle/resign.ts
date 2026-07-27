@@ -46,7 +46,7 @@ export const resign = onCall<ResignRequest>(async (request): Promise<ResignRespo
   }
 
   const result = await roomRef.transaction((room) => {
-    if (room === null || room[GENERAL_ROOM_KEYS.STATE] === null) {
+    if (!room || !room[GENERAL_ROOM_KEYS.STATE]) {
       return room;
     }
 
@@ -55,8 +55,14 @@ export const resign = onCall<ResignRequest>(async (request): Promise<ResignRespo
     }
 
     const game = room[GENERAL_ROOM_KEYS.GAME];
-    if (game === null || game[GENERAL_ROOM_KEYS.PHASE] === null) {
+    if (!game) {
       return room;
+    }
+    if (
+      game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING &&
+      game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED
+    ) {
+      return;
     }
 
     if (

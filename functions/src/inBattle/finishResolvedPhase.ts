@@ -9,6 +9,7 @@ import {
   isCheaterDetectionResult,
   isResignerDetectionResult,
   PRIVATE_ROOM_KEYS,
+  ROOM_STATES,
   WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 import {FinishResolvedPhaseTask, GoBackToPrivateLobbyTask} from "../contracts";
@@ -64,7 +65,7 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
     }
 
     const result = await roomRef.transaction((room) => {
-      if (room === null) {
+      if (!room || room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
         return room;
       }
 
@@ -178,6 +179,18 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
 
     if (!finalHost || !finalGuest || !finalGame || !finalRules || !finalResolvedRound) {
       throw new HttpsError("failed-precondition", "Database is incomplete. (after transaction)");
+    }
+
+    const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
+    const finalRoundNumber = finalResolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER];
+    const finalNextPhaseAt = finalResolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
+    if (
+      finalState !== ROOM_STATES.PLAYING ||
+      finalRoundNumber !== roundNumber ||
+      finalNextPhaseAt !== nextPhaseAt
+    ) {
+      // すでに古いタスクなら何もしない
+      return;
     }
 
     if (

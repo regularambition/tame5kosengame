@@ -290,6 +290,24 @@ export const submitHand = onCall<SubmitHandRequest>(
       return {hasSucceeded: true};
     }
 
+    // 手の提出実行前に条件確認
+    const preSubmissionState = roomSnapshot.child(GENERAL_ROOM_KEYS.STATE).val();
+    const preSubmissionPhase = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.GAME)
+      .child(GENERAL_ROOM_KEYS.PHASE)
+      .val();
+    const currentRoundNumber = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.GAME)
+      .child(GENERAL_ROOM_KEYS.ROUND_NUMBER)
+      .val();
+    if (
+      preSubmissionState !== ROOM_STATES.PLAYING ||
+      preSubmissionPhase !== GAME_PHASES.SELECTING ||
+      currentRoundNumber !== roundNumber
+    ) {
+      throw new HttpsError("failed-precondition", "Hand cannot be submitted now.");
+    }
+
     const submissionRef = db.ref(
       DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHand(roomId, roundNumber),
     );
