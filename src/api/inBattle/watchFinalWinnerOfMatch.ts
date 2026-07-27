@@ -9,12 +9,12 @@ export function watchFinalWinnerOfMatch(
   onChange: (finalWinnerOfMatch: WinnerDetectionResultId) => void,
   isPrivateMatch: boolean = false,
 ) {
-  const nextPhaseAtRef = ref(
+  const finalWinnerOfMatchRef = ref(
     database,
     DATABASE_PATHS_FOR_ROOMS.finalWinnerOfMatch(roomId, isPrivateMatch),
   );
 
-  return onValue(nextPhaseAtRef, (snapshot) => {
+  return onValue(finalWinnerOfMatchRef, (snapshot) => {
     if (snapshot.val() !== null) {
       onChange(snapshot.val());
     }
