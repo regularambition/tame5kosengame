@@ -1,8 +1,8 @@
-import {FUNCTIONS_REGION, ALGORITHM_NAME, ENCODING} from "../config";
+import {BACKEND_REGION, ALGORITHM_NAME, ENCODING} from "../config";
 import {createHash} from "crypto";
 
 export function buildTaskPath(taskName: string) {
-  return `locations/${FUNCTIONS_REGION}/functions/${taskName}`;
+  return `locations/${BACKEND_REGION}/functions/${taskName}`;
 }
 
 export function isTaskAlreadyAdded(error: unknown): boolean {

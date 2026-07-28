@@ -1,5 +1,5 @@
 import {onValueWritten} from "firebase-functions/v2/database";
-import {REALTIME_DATABASE_REGION} from "../config";
+import {BACKEND_REGION} from "../config";
 import {db} from "../firebaseAdmin";
 import {
   DATABASE_PATHS_FOR_ROOMS,
@@ -48,7 +48,7 @@ export async function enqueueGoBackToPrivateLobby(
 export const enqueueGoBackToLobbyTask = onValueWritten(
   {
     ref: "/privateRooms/{roomId}/game/" + "backToLobbyAt",
-    region: REALTIME_DATABASE_REGION,
+    region: BACKEND_REGION,
     retry: true,
   },
   async (event) => {

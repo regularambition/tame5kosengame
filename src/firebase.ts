@@ -22,7 +22,8 @@ export const database = getDatabase(app);
 /**
  * Cloud Functionsで動く処理の集まり
  */
-export const functions = getFunctions(app);
+const functionsRegion = import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION;
+export const functions = getFunctions(app, functionsRegion);
 export function getCallableFunction<ARG, RET>(functionName: string) {
   return httpsCallable<ARG, RET>(functions, functionName);
 }

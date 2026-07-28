@@ -4,7 +4,7 @@ import {onValueWritten} from "firebase-functions/v2/database";
 import {getFunctions} from "firebase-admin/functions";
 import {buildTaskPath, isRetryWindowExpired, isTaskAlreadyAdded, makeTaskId} from "./helpers";
 import {FinishIntroPhaseTask, FinishResolvedPhaseTask} from "../contracts";
-import {REALTIME_DATABASE_REGION} from "../config";
+import {BACKEND_REGION} from "../config";
 import {logger} from "firebase-functions";
 
 function makeFinishIntroTaskId(roomId: string, nextPhaseAt: number): string {
@@ -79,7 +79,7 @@ async function enqueueFinishResolvedPhase(
 export const enqueuePhaseTransitionTask = onValueWritten(
   {
     ref: "/privateRooms/{roomId}/game/" + "resolvedRound/nextPhaseAt",
-    region: REALTIME_DATABASE_REGION,
+    region: BACKEND_REGION,
     retry: true,
   },
   async (event) => {
