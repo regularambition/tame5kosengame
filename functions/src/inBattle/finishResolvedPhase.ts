@@ -12,47 +12,9 @@ import {
   ROOM_STATES,
   WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
-import {FinishResolvedPhaseTask, GoBackToPrivateLobbyTask} from "../contracts";
+import {FinishResolvedPhaseTask} from "../contracts";
 import {findBackToLobbyAt, findHandSubmissionDeadline} from "./timestampGenerator";
-import {ALGORITHM_NAME, PHASE_TRANSITION_TASK_OPTIONS} from "../config";
-import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
-import {getFunctions} from "firebase-admin/functions";
-import {createHash} from "crypto";
-
-function makeGoBackToPrivateLobbyTaskId(roomId: string, nextPhaseAt: number): string {
-  return createHash(ALGORITHM_NAME)
-    .update(`go-back-to-private-lobby:${roomId}:${nextPhaseAt}`)
-    .digest("hex");
-}
-
-export async function enqueueGoBackToPrivateLobby(
-  roomId: string,
-  backToLobbyAt: number,
-): Promise<void> {
-  const queue = getFunctions().taskQueue(buildTaskPath("goBackToPrivateLobby"));
-
-  try {
-    await queue.enqueue(
-      {
-        roomId,
-        backToLobbyAt,
-      } satisfies GoBackToPrivateLobbyTask,
-      {
-        scheduleTime: new Date(backToLobbyAt),
-
-        // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
-        id: makeGoBackToPrivateLobbyTaskId(roomId, backToLobbyAt),
-      },
-    );
-  } catch (error) {
-    // 通信再試行などで同じタスクを再登録した場合は成功扱い
-    if (isTaskAlreadyAdded(error)) {
-      return;
-    }
-
-    throw error;
-  }
-}
+import {PHASE_TRANSITION_TASK_OPTIONS} from "../config";
 
 export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
   PHASE_TRANSITION_TASK_OPTIONS,
@@ -250,6 +212,5 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
     if (typeof finalBackToLobbyAt !== "number") {
       throw new HttpsError("internal", "backToLobbyAt is missing.");
     }
-    await enqueueGoBackToPrivateLobby(roomId, finalBackToLobbyAt);
   },
 );

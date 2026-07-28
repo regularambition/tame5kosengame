@@ -1,7 +1,6 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {ServerValue} from "firebase-admin/database";
-import {getFunctions} from "firebase-admin/functions";
-import {createHash, createHmac, randomInt} from "crypto";
+import {createHmac, randomInt} from "crypto";
 
 import {db} from "../firebaseAdmin";
 
@@ -32,8 +31,6 @@ import type {
   MarkAsReadyResponse,
 } from "@tame5kosengame/shared";
 import {findNextPhaseAt} from "../inBattle/timestampGenerator";
-import {FinishIntroPhaseTask} from "../contracts";
-import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
 import {ALGORITHM_NAME as ENCRYPTION_ALGORITHM_NAME} from "../config";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
@@ -364,38 +361,6 @@ export const deletePrivateRoom = onCall<DeletePrivateRoomRequest>(
   },
 );
 
-function makeFinishIntroTaskId(roomId: string, nextPhaseAt: number): string {
-  return createHash(ENCRYPTION_ALGORITHM_NAME)
-    .update(`finish-intro:${roomId}:${nextPhaseAt}`)
-    .digest("hex");
-}
-
-async function enqueueFinishIntroPhase(roomId: string, nextPhaseAt: number): Promise<void> {
-  const queue = getFunctions().taskQueue(buildTaskPath("finishIntroPhase"));
-
-  try {
-    await queue.enqueue(
-      {
-        roomId,
-        nextPhaseAt,
-      } satisfies FinishIntroPhaseTask,
-      {
-        scheduleTime: new Date(nextPhaseAt),
-
-        // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
-        id: makeFinishIntroTaskId(roomId, nextPhaseAt),
-      },
-    );
-  } catch (error) {
-    // 通信再試行などで同じタスクを再登録した場合は成功扱い
-    if (isTaskAlreadyAdded(error)) {
-      return;
-    }
-
-    throw error;
-  }
-}
-
 export const markAsReady = onCall<MarkAsReadyRequest>(
   async (request): Promise<MarkAsReadyResponse> => {
     if (!request.auth) {
@@ -537,8 +502,6 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
       if (typeof nextPhaseAt !== "number") {
         throw new HttpsError("internal", "Intro phase deadline is missing.");
       }
-
-      await enqueueFinishIntroPhase(roomId, nextPhaseAt);
     }
 
     return {

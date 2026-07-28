@@ -24,6 +24,7 @@ import {
   goBackToPrivateLobby,
   resign,
 } from "./inBattle";
+import {enqueuePhaseTransitionTask, enqueueGoBackToLobbyTask} from "./forCloudTasks";
 
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
@@ -56,4 +57,8 @@ export {
   finishResolvedPhase,
   goBackToPrivateLobby,
   resign,
+
+  // DBイベントからCloud Tasksを登録するFunction
+  enqueuePhaseTransitionTask,
+  enqueueGoBackToLobbyTask,
 };

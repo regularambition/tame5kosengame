@@ -22,13 +22,6 @@ import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengam
 import {ServerValue} from "firebase-admin/database";
 import {findBackToLobbyAt, findNextPhaseAt} from "./timestampGenerator";
 
-import {createHash} from "crypto";
-import {getFunctions} from "firebase-admin/functions";
-import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
-import {FinishResolvedPhaseTask} from "../contracts";
-import {ALGORITHM_NAME} from "../config";
-import {enqueueGoBackToPrivateLobby} from "./finishResolvedPhase";
-
 function findWinnerOfRound(hostHand: HandId, guestHand: HandId) {
   if (hostHand === guestHand) {
     return WINNER_DETECTION_RESULT.DRAW;
@@ -70,43 +63,6 @@ function findScoreGain(winnersHand: HandId, winnerUid: string, uid: string) {
     return 2;
   } else {
     return 0;
-  }
-}
-
-function makeFinishResolvedTaskId(roomId: string, nextPhaseAt: number): string {
-  return createHash(ALGORITHM_NAME)
-    .update(`finish-resolved:${roomId}:${nextPhaseAt}`)
-    .digest("hex");
-}
-
-async function enqueueFinishResolvedPhase(
-  roomId: string,
-  nextPhaseAt: number,
-  roundNumber: number,
-): Promise<void> {
-  const queue = getFunctions().taskQueue(buildTaskPath("finishResolvedPhase"));
-
-  try {
-    await queue.enqueue(
-      {
-        roomId,
-        nextPhaseAt,
-        roundNumber,
-      } satisfies FinishResolvedPhaseTask,
-      {
-        scheduleTime: new Date(nextPhaseAt),
-
-        // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
-        id: makeFinishResolvedTaskId(roomId, nextPhaseAt),
-      },
-    );
-  } catch (error) {
-    // 通信再試行などで同じタスクを再登録した場合は成功扱い
-    if (isTaskAlreadyAdded(error)) {
-      return;
-    }
-
-    throw error;
   }
 }
 
@@ -161,7 +117,7 @@ export const submitHand = onCall<SubmitHandRequest>(
       // 本来ならば選択不可能な手を提出している場合はチート行為なのでその時点で負けとする
 
       const result = await roomRef.transaction((room) => {
-        if (room === null || room[GENERAL_ROOM_KEYS.STATE] === null) {
+        if (!room || !room[GENERAL_ROOM_KEYS.STATE]) {
           return room;
         }
 
@@ -171,9 +127,9 @@ export const submitHand = onCall<SubmitHandRequest>(
 
         const game = room[GENERAL_ROOM_KEYS.GAME];
         if (
-          game === null ||
-          game[GENERAL_ROOM_KEYS.PHASE] === null ||
-          game[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+          !game ||
+          !game[GENERAL_ROOM_KEYS.PHASE] ||
+          typeof game[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== "number"
         ) {
           return room;
         }
@@ -229,7 +185,7 @@ export const submitHand = onCall<SubmitHandRequest>(
         !finalGuest ||
         !finalGame ||
         !finalGame[GENERAL_ROOM_KEYS.PHASE] ||
-        finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+        typeof finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== "number"
       ) {
         throw new HttpsError(
           "failed-precondition",
@@ -284,8 +240,6 @@ export const submitHand = onCall<SubmitHandRequest>(
       if (typeof finalBackToLobbyAt !== "number") {
         throw new HttpsError("internal", "backToLobbyAt is missing (in cheating case).");
       }
-
-      await enqueueGoBackToPrivateLobby(roomId, finalBackToLobbyAt);
 
       return {hasSucceeded: true};
     }
@@ -480,8 +434,6 @@ export const submitHand = onCall<SubmitHandRequest>(
     if (typeof nextPhaseAt !== "number") {
       throw new HttpsError("internal", "Resolved phase deadline is missing.");
     }
-
-    await enqueueFinishResolvedPhase(roomId, nextPhaseAt, roundNumber);
 
     return {hasSucceeded: true};
   },

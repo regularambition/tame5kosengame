@@ -18,8 +18,6 @@ import type {ResignRequest, ResignResponse} from "@tame5kosengame/shared";
 
 import {findBackToLobbyAt} from "./timestampGenerator";
 
-import {enqueueGoBackToPrivateLobby} from "./finishResolvedPhase";
-
 export const resign = onCall<ResignRequest>(async (request): Promise<ResignResponse> => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");
@@ -144,7 +142,6 @@ export const resign = onCall<ResignRequest>(async (request): Promise<ResignRespo
     if (typeof finalBackToLobbyAt !== "number") {
       throw new HttpsError("internal", "backToLobbyAt is missing.");
     }
-    await enqueueGoBackToPrivateLobby(roomId, finalBackToLobbyAt);
   }
 
   return {hasSucceeded: true};
