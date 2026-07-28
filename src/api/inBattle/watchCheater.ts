@@ -2,7 +2,11 @@ import {onValue, ref} from "firebase/database";
 
 import {database} from "../../firebase";
 
-import {CheaterDetectionResultId, DATABASE_PATHS_FOR_ROOMS} from "@tame5kosengame/shared";
+import {
+  CheaterDetectionResultId,
+  DATABASE_PATHS_FOR_ROOMS,
+  isCheaterDetectionResult,
+} from "@tame5kosengame/shared";
 
 export function watchCheater(
   roomId: string,
@@ -12,7 +16,7 @@ export function watchCheater(
   const cheaterRef = ref(database, DATABASE_PATHS_FOR_ROOMS.cheater(roomId, isPrivateMatch));
 
   return onValue(cheaterRef, (snapshot) => {
-    if (snapshot.val() !== null) {
+    if (isCheaterDetectionResult(snapshot.val())) {
       onChange(snapshot.val());
     }
   });

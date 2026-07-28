@@ -15,17 +15,12 @@ import {
   canSelectHand,
   PRIVATE_ROOM_KEYS,
   CHEATER_DETECTION_RESULT,
+  isCheaterDetectionResult,
+  isResignerDetectionResult,
 } from "@tame5kosengame/shared";
 import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
 import {ServerValue} from "firebase-admin/database";
 import {findBackToLobbyAt, findNextPhaseAt} from "./timestampGenerator";
-
-import {createHash} from "crypto";
-import {getFunctions} from "firebase-admin/functions";
-import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
-import {FinishResolvedPhaseTask} from "../contracts";
-import {ALGORITHM_NAME} from "../config";
-import {enqueueGoBackToPrivateLobby} from "./finishResolvedPhase";
 
 function findWinnerOfRound(hostHand: HandId, guestHand: HandId) {
   if (hostHand === guestHand) {
@@ -68,43 +63,6 @@ function findScoreGain(winnersHand: HandId, winnerUid: string, uid: string) {
     return 2;
   } else {
     return 0;
-  }
-}
-
-function makeFinishResolvedTaskId(roomId: string, nextPhaseAt: number): string {
-  return createHash(ALGORITHM_NAME)
-    .update(`finish-resolved:${roomId}:${nextPhaseAt}`)
-    .digest("hex");
-}
-
-async function enqueueFinishResolvedPhase(
-  roomId: string,
-  nextPhaseAt: number,
-  roundNumber: number,
-): Promise<void> {
-  const queue = getFunctions().taskQueue(buildTaskPath("finishResolvedPhase"));
-
-  try {
-    await queue.enqueue(
-      {
-        roomId,
-        nextPhaseAt,
-        roundNumber,
-      } satisfies FinishResolvedPhaseTask,
-      {
-        scheduleTime: new Date(nextPhaseAt),
-
-        // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
-        id: makeFinishResolvedTaskId(roomId, nextPhaseAt),
-      },
-    );
-  } catch (error) {
-    // 通信再試行などで同じタスクを再登録した場合は成功扱い
-    if (isTaskAlreadyAdded(error)) {
-      return;
-    }
-
-    throw error;
   }
 }
 
@@ -159,7 +117,7 @@ export const submitHand = onCall<SubmitHandRequest>(
       // 本来ならば選択不可能な手を提出している場合はチート行為なのでその時点で負けとする
 
       const result = await roomRef.transaction((room) => {
-        if (room === null || room[GENERAL_ROOM_KEYS.STATE] === null) {
+        if (!room || !room[GENERAL_ROOM_KEYS.STATE]) {
           return room;
         }
 
@@ -169,15 +127,22 @@ export const submitHand = onCall<SubmitHandRequest>(
 
         const game = room[GENERAL_ROOM_KEYS.GAME];
         if (
-          game === null ||
-          game[GENERAL_ROOM_KEYS.PHASE] === null ||
-          game[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+          !game ||
+          !game[GENERAL_ROOM_KEYS.PHASE] ||
+          typeof game[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== "number"
         ) {
           return room;
         }
 
-        if (game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.FINISHED) {
+        if (
+          game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.FINISHED ||
+          isCheaterDetectionResult(game[GENERAL_ROOM_KEYS.CHEATER]) ||
+          isResignerDetectionResult(game[GENERAL_ROOM_KEYS.RESIGNER])
+        ) {
           // 結果を冪等にする
+          // 割り込んできたチート対策処理や降参によって
+          // 既に最終的な勝者が決定している場合
+          // 手の提出による書き込みは一切行われない
           return room;
         }
 
@@ -220,12 +185,16 @@ export const submitHand = onCall<SubmitHandRequest>(
         !finalGuest ||
         !finalGame ||
         !finalGame[GENERAL_ROOM_KEYS.PHASE] ||
-        finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+        typeof finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== "number"
       ) {
         throw new HttpsError(
           "failed-precondition",
           "Private room data is incomplete (in cheating case).",
         );
+      }
+      if (isResignerDetectionResult(finalGame[GENERAL_ROOM_KEYS.RESIGNER])) {
+        // 相手の降参が先に割り込んできている場合はすぐさま終了
+        return {hasSucceeded: true};
       }
       if (finalState !== ROOM_STATES.PLAYING) {
         throw new HttpsError(
@@ -256,15 +225,41 @@ export const submitHand = onCall<SubmitHandRequest>(
         );
       }
 
+      // 既に相手がチートを使っている場合はすぐさま終了
+      if (
+        (finalPlayer === finalHost &&
+          finalGame[GENERAL_ROOM_KEYS.CHEATER] === CHEATER_DETECTION_RESULT.GUEST_USED_CHEATING) ||
+        (finalPlayer === finalGuest &&
+          finalGame[GENERAL_ROOM_KEYS.CHEATER] === CHEATER_DETECTION_RESULT.HOST_USED_CHEATING)
+      ) {
+        return {hasSucceeded: true};
+      }
+
       const finalBackToLobbyAt = finalGame[PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT];
 
       if (typeof finalBackToLobbyAt !== "number") {
         throw new HttpsError("internal", "backToLobbyAt is missing (in cheating case).");
       }
 
-      await enqueueGoBackToPrivateLobby(roomId, finalBackToLobbyAt);
-
       return {hasSucceeded: true};
+    }
+
+    // 手の提出実行前に条件確認
+    const preSubmissionState = roomSnapshot.child(GENERAL_ROOM_KEYS.STATE).val();
+    const preSubmissionPhase = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.GAME)
+      .child(GENERAL_ROOM_KEYS.PHASE)
+      .val();
+    const currentRoundNumber = roomSnapshot
+      .child(GENERAL_ROOM_KEYS.GAME)
+      .child(GENERAL_ROOM_KEYS.ROUND_NUMBER)
+      .val();
+    if (
+      preSubmissionState !== ROOM_STATES.PLAYING ||
+      preSubmissionPhase !== GAME_PHASES.SELECTING ||
+      currentRoundNumber !== roundNumber
+    ) {
+      throw new HttpsError("failed-precondition", "Hand cannot be submitted now.");
     }
 
     const submissionRef = db.ref(
@@ -330,8 +325,15 @@ export const submitHand = onCall<SubmitHandRequest>(
         return room;
       }
 
-      if (game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.RESOLVED) {
+      if (
+        game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.RESOLVED ||
+        isCheaterDetectionResult(game[GENERAL_ROOM_KEYS.CHEATER]) ||
+        isResignerDetectionResult(game[GENERAL_ROOM_KEYS.RESIGNER])
+      ) {
         // 結果を冪等にする
+        // 割り込んできたチート対策処理や降参によって
+        // 既に最終的な勝者が決定している場合
+        // 手の提出による書き込みは一切行われない
         return room;
       }
 
@@ -399,6 +401,13 @@ export const submitHand = onCall<SubmitHandRequest>(
     ) {
       throw new HttpsError("failed-precondition", "Private room data is incomplete.");
     }
+    if (
+      isCheaterDetectionResult(finalGame[GENERAL_ROOM_KEYS.CHEATER]) ||
+      isResignerDetectionResult(finalGame[GENERAL_ROOM_KEYS.RESIGNER])
+    ) {
+      // チート対策処理や降参が先に割り込んできている場合はすぐさま終了
+      return {hasSucceeded: true};
+    }
     if (finalState !== ROOM_STATES.PLAYING) {
       throw new HttpsError("failed-precondition", "Private room is not playing.");
     }
@@ -425,8 +434,6 @@ export const submitHand = onCall<SubmitHandRequest>(
     if (typeof nextPhaseAt !== "number") {
       throw new HttpsError("internal", "Resolved phase deadline is missing.");
     }
-
-    await enqueueFinishResolvedPhase(roomId, nextPhaseAt, roundNumber);
 
     return {hasSucceeded: true};
   },

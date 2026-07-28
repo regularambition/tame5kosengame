@@ -20,6 +20,8 @@ import {
   ROOM_STATES,
   CheaterDetectionResultId,
   CHEATER_DETECTION_RESULT,
+  ResignerDetectionResultId,
+  RESIGNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 
 import {CenterAligningDiv} from "./ui/CenterAligningDiv";
@@ -59,6 +61,8 @@ import {watchBackToLobbyAt} from "../api/inBattle/watchBackToLobbyAt";
 import {watchPrivateRoomState} from "../api/watchPrivateRoom";
 import {MatchInfo} from "../types/MatchInfo";
 import {watchCheater} from "../api/inBattle/watchCheater";
+import {watchResigner} from "../api/inBattle/watchResigner";
+import {resign} from "../api/inBattle/resign";
 
 type MainDivProps = {
   children: ReactNode;
@@ -607,6 +611,12 @@ function FinishedPhaseDiv({
     return watchCheater(matchInfo.roomId, setCheater, isPrivateMatch(matchInfo.role));
   }, []);
 
+  const [resigner, setResginer] = useState<ResignerDetectionResultId | undefined>(undefined);
+
+  useEffect(() => {
+    return watchResigner(matchInfo.roomId, setResginer, isPrivateMatch(matchInfo.role));
+  }, []);
+
   if (isPrivateMatch(matchInfo.role)) {
     useEffect(() => {
       return watchPrivateRoomState(matchInfo.roomId, (st) => {
@@ -624,8 +634,10 @@ function FinishedPhaseDiv({
 
   const findResultUserForUi = (
     matchInfo: MatchInfo,
-    comparedStateValue: WinnerDetectionResultId | CheaterDetectionResultId | undefined,
-    hostSideConstant: WinnerDetectionResultId | CheaterDetectionResultId,
+    comparedStateValue:
+      WinnerDetectionResultId | CheaterDetectionResultId | ResignerDetectionResultId | undefined,
+    hostSideConstant:
+      WinnerDetectionResultId | CheaterDetectionResultId | ResignerDetectionResultId,
   ) => {
     let res = "";
     if (comparedStateValue === hostSideConstant) {
@@ -660,6 +672,12 @@ function FinishedPhaseDiv({
         <AnnotationText>
           {findResultUserForUi(matchInfo, cheater, CHEATER_DETECTION_RESULT.HOST_USED_CHEATING)}
           がチートを使用しました
+        </AnnotationText>
+      )}
+      {resigner !== undefined && (
+        <AnnotationText>
+          {findResultUserForUi(matchInfo, resigner, RESIGNER_DETECTION_RESULT.HOST_RESIGNED)}
+          が降参しました
         </AnnotationText>
       )}
       {isPrivateMatch(matchInfo.role) && (
@@ -734,11 +752,20 @@ export function InBattleScreen({matchInfo, onBackToPrivateLobby}: InBattleScreen
   const canResign =
     isPlayerRole(matchInfo.role) &&
     (gamePhase === GAME_PHASES.SELECTING || gamePhase === GAME_PHASES.RESOLVED);
+  const [isResigning, setIsResigning] = useState<boolean>(false);
+
+  const handleResign = async () => {
+    setIsResigning(true);
+    await resign(matchInfo.roomId, isPrivateMatch(matchInfo.role));
+    setIsResigning(false);
+  };
 
   return (
     <main className="screen not-playing-text-general using-full-height vertical-alignment vertical-even">
       {isPrivateMatch(matchInfo.role) && <SpectatorUiDiv spectatorCount={spectatorCount} />}
-      {canResign && <ResignButton onClick={() => {}} />}
+      {canResign && (
+        <ResignButton disabled={isResigning} onClick={async () => await handleResign()} />
+      )}
       <PlayerStatusDiv
         userName={isDownsideGuest ? matchInfo.hostName : matchInfo.guestName}
         className="panel-p2"

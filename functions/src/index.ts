@@ -7,18 +7,6 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-import {setGlobalOptions} from "firebase-functions";
-
-import {ensureUserProfile, updateUserName} from "./auth/anonymousSignin";
-import {
-  createPrivateRoom,
-  enterPrivateRoom,
-  leavePrivateRoom,
-  deletePrivateRoom,
-  markAsReady,
-} from "./roomManaging/privateRoom";
-import {submitHand, finishIntroPhase, finishResolvedPhase, goBackToPrivateLobby} from "./inBattle";
-
 // import { onRequest } from "firebase-functions/https";
 // import * as logger from "firebase-functions/logger";
 
@@ -35,7 +23,24 @@ import {submitHand, finishIntroPhase, finishResolvedPhase, goBackToPrivateLobby}
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({maxInstances: 10});
+import "./config/globalOptions";
+
+import {ensureUserProfile, updateUserName} from "./auth/anonymousSignin";
+import {
+  createPrivateRoom,
+  enterPrivateRoom,
+  leavePrivateRoom,
+  deletePrivateRoom,
+  markAsReady,
+} from "./roomManaging/privateRoom";
+import {
+  submitHand,
+  finishIntroPhase,
+  finishResolvedPhase,
+  goBackToPrivateLobby,
+  resign,
+} from "./inBattle";
+import {enqueuePhaseTransitionTask, enqueueGoBackToLobbyTask} from "./forCloudTasks";
 
 export {
   ensureUserProfile,
@@ -49,4 +54,9 @@ export {
   finishIntroPhase,
   finishResolvedPhase,
   goBackToPrivateLobby,
+  resign,
+
+  // DBイベントからCloud Tasksを登録するFunction
+  enqueuePhaseTransitionTask,
+  enqueueGoBackToLobbyTask,
 };

@@ -5,3 +5,10 @@ export const CHEATER_DETECTION_RESULT = {
 
 export type CheaterDetectionResultId =
   (typeof CHEATER_DETECTION_RESULT)[keyof typeof CHEATER_DETECTION_RESULT];
+
+export function isCheaterDetectionResult(value: unknown): value is CheaterDetectionResultId {
+  return (
+    value === CHEATER_DETECTION_RESULT.HOST_USED_CHEATING ||
+    value === CHEATER_DETECTION_RESULT.GUEST_USED_CHEATING
+  );
+}

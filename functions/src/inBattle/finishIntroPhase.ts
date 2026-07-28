@@ -22,7 +22,7 @@ export const finishIntroPhase = onTaskDispatched<FinishIntroPhaseTask>(
     }
 
     const result = await roomRef.transaction((room) => {
-      if (room === null) {
+      if (!room) {
         return room;
       }
 
@@ -30,7 +30,7 @@ export const finishIntroPhase = onTaskDispatched<FinishIntroPhaseTask>(
       const host = room[GENERAL_ROOM_KEYS.HOST];
       const guest = room[GENERAL_ROOM_KEYS.GUEST];
 
-      if (game === null || host === null || guest === null) {
+      if (!game || !host || !guest) {
         return room;
       }
 
@@ -91,7 +91,7 @@ export const finishIntroPhase = onTaskDispatched<FinishIntroPhaseTask>(
     const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
     const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
     const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
-    if (finalGame === null || finalHost === null || finalGuest === null) {
+    if (!finalGame || !finalHost || !finalGuest) {
       throw new HttpsError("internal", "game host guest missing.");
     }
     if (

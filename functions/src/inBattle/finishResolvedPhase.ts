@@ -6,50 +6,15 @@ import {
   GAME_PHASES,
   GENERAL_ROOM_KEYS,
   INITIAL_VALUES_IN_BATTLE,
+  isCheaterDetectionResult,
+  isResignerDetectionResult,
   PRIVATE_ROOM_KEYS,
+  ROOM_STATES,
   WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
-import {FinishResolvedPhaseTask, GoBackToPrivateLobbyTask} from "../contracts";
+import {FinishResolvedPhaseTask} from "../contracts";
 import {findBackToLobbyAt, findHandSubmissionDeadline} from "./timestampGenerator";
-import {ALGORITHM_NAME, PHASE_TRANSITION_TASK_OPTIONS} from "../config";
-import {buildTaskPath, isTaskAlreadyAdded} from "../forCloudTasks";
-import {getFunctions} from "firebase-admin/functions";
-import {createHash} from "crypto";
-
-function makeGoBackToPrivateLobbyTaskId(roomId: string, nextPhaseAt: number): string {
-  return createHash(ALGORITHM_NAME)
-    .update(`go-back-to-private-lobby:${roomId}:${nextPhaseAt}`)
-    .digest("hex");
-}
-
-export async function enqueueGoBackToPrivateLobby(
-  roomId: string,
-  backToLobbyAt: number,
-): Promise<void> {
-  const queue = getFunctions().taskQueue(buildTaskPath("goBackToPrivateLobby"));
-
-  try {
-    await queue.enqueue(
-      {
-        roomId,
-        backToLobbyAt,
-      } satisfies GoBackToPrivateLobbyTask,
-      {
-        scheduleTime: new Date(backToLobbyAt),
-
-        // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
-        id: makeGoBackToPrivateLobbyTaskId(roomId, backToLobbyAt),
-      },
-    );
-  } catch (error) {
-    // 通信再試行などで同じタスクを再登録した場合は成功扱い
-    if (isTaskAlreadyAdded(error)) {
-      return;
-    }
-
-    throw error;
-  }
-}
+import {PHASE_TRANSITION_TASK_OPTIONS} from "../config";
 
 export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
   PHASE_TRANSITION_TASK_OPTIONS,
@@ -62,7 +27,7 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
     }
 
     const result = await roomRef.transaction((room) => {
-      if (room === null) {
+      if (!room || room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
         return room;
       }
 
@@ -76,10 +41,12 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
         return room;
       }
 
-      // すでに古いタスクなら何もしない
+      // すでに古いタスク（チート対策処理や降参が割り込んでいる場合も含む）なら何もしない
       if (
         game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED ||
-        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
+        resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber ||
+        isCheaterDetectionResult(game[GENERAL_ROOM_KEYS.CHEATER]) ||
+        isResignerDetectionResult(game[GENERAL_ROOM_KEYS.RESIGNER])
       ) {
         return room;
       }
@@ -176,6 +143,26 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
       throw new HttpsError("failed-precondition", "Database is incomplete. (after transaction)");
     }
 
+    const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
+    const finalRoundNumber = finalResolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER];
+    const finalNextPhaseAt = finalResolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
+    if (
+      finalState !== ROOM_STATES.PLAYING ||
+      finalRoundNumber !== roundNumber ||
+      finalNextPhaseAt !== nextPhaseAt
+    ) {
+      // すでに古いタスクなら何もしない
+      return;
+    }
+
+    if (
+      isCheaterDetectionResult(finalGame[GENERAL_ROOM_KEYS.CHEATER]) ||
+      isResignerDetectionResult(finalGame[GENERAL_ROOM_KEYS.RESIGNER])
+    ) {
+      // チート対策処理や降参が先に割り込んできている場合はすぐさま終了
+      return;
+    }
+
     const finalHostMana = finalHost[GENERAL_ROOM_KEYS.MANA];
     const finalHostScore = finalHost[GENERAL_ROOM_KEYS.SCORE];
     const finalGuestMana = finalGuest[GENERAL_ROOM_KEYS.MANA];
@@ -225,6 +212,5 @@ export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(
     if (typeof finalBackToLobbyAt !== "number") {
       throw new HttpsError("internal", "backToLobbyAt is missing.");
     }
-    await enqueueGoBackToPrivateLobby(roomId, finalBackToLobbyAt);
   },
 );

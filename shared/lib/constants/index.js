@@ -5,3 +5,4 @@ export * from "./handIds.js";
 export * from "./initialValuesInBattle.js";
 export * from "./winnerDetection.js";
 export * from "./cheaterDetection.js";
+export * from "./resignerDetection.js";

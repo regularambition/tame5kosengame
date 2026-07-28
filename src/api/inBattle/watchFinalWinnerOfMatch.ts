@@ -2,7 +2,11 @@ import {onValue, ref} from "firebase/database";
 
 import {database} from "../../firebase";
 
-import {DATABASE_PATHS_FOR_ROOMS, WinnerDetectionResultId} from "@tame5kosengame/shared";
+import {
+  DATABASE_PATHS_FOR_ROOMS,
+  isWinnerDetectionResult,
+  WinnerDetectionResultId,
+} from "@tame5kosengame/shared";
 
 export function watchFinalWinnerOfMatch(
   roomId: string,
@@ -15,7 +19,7 @@ export function watchFinalWinnerOfMatch(
   );
 
   return onValue(finalWinnerOfMatchRef, (snapshot) => {
-    if (snapshot.val() !== null) {
+    if (isWinnerDetectionResult(snapshot.val())) {
       onChange(snapshot.val());
     }
   });

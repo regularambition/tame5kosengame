@@ -15,12 +15,6 @@ export const goBackToPrivateLobby = onTaskDispatched<GoBackToPrivateLobbyTask>(
   async (request) => {
     const {roomId, backToLobbyAt} = request.data;
 
-    const hiddenHandRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHandRoot(roomId));
-    const hiddenHandSnapshot = await hiddenHandRef.get();
-    if (hiddenHandSnapshot.exists()) {
-      await hiddenHandRef.remove();
-    }
-
     const roomRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId));
     const roomSnapshot = await roomRef.get();
     if (!roomSnapshot.exists()) {
@@ -28,14 +22,14 @@ export const goBackToPrivateLobby = onTaskDispatched<GoBackToPrivateLobbyTask>(
     }
 
     const result = await roomRef.transaction((room) => {
-      if (room === null) {
+      if (!room) {
         return room;
       }
 
       const game = room[GENERAL_ROOM_KEYS.GAME];
 
       // すでに古いタスクなら何もしない
-      if (game === null || room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
+      if (!game || room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
         return room;
       }
 
@@ -64,8 +58,16 @@ export const goBackToPrivateLobby = onTaskDispatched<GoBackToPrivateLobbyTask>(
     }
 
     const finalRoom = result.snapshot.val();
-    if (finalRoom[GENERAL_ROOM_KEYS.STATE] === null) {
+    if (!finalRoom[GENERAL_ROOM_KEYS.STATE]) {
       throw new HttpsError("internal", "state of room is missing.");
+    }
+
+    if (finalRoom[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.PREPARING) {
+      const hiddenHandRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHandRoot(roomId));
+      const hiddenHandSnapshot = await hiddenHandRef.get();
+      if (hiddenHandSnapshot.exists()) {
+        await hiddenHandRef.remove();
+      }
     }
   },
 );
