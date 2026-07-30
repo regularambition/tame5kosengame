@@ -281,6 +281,11 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           return currentRoom;
         }
 
+        const state = currentRoom[GENERAL_ROOM_KEYS.STATE];
+        if (state !== ROOM_STATES.PREPARING) {
+          return currentRoom;
+        }
+
         const host = currentRoom[GENERAL_ROOM_KEYS.HOST];
         const guest = currentRoom[GENERAL_ROOM_KEYS.GUEST];
         if (host == null || guest == null) {
@@ -307,6 +312,10 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       }
 
       const finalRoom = result.snapshot.val();
+      const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
+      if (finalState !== ROOM_STATES.PREPARING) {
+        throw new HttpsError("failed-precondition", "Room is not in preparing state.");
+      }
       const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
       if (finalHost == null) {
         throw new HttpsError("failed-precondition", "Room is broken(lacking host).");
