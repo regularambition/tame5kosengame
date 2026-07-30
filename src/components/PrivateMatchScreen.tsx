@@ -153,6 +153,13 @@ function WaitingForGuestDiv({
     setTimeout(() => setCopyAnnotation(""), 2000); // 2秒後に戻す
   };
 
+  const [isKickProcessing, setIsKickProcessing] = useState<boolean>(false);
+
+  const handleKick = async () => {
+    setIsKickProcessing(true);
+    setIsKickProcessing(false);
+  };
+
   return (
     <Div>
       <p>
@@ -170,13 +177,16 @@ function WaitingForGuestDiv({
         {matchPoint}点先取で勝利、選択は{thinkingTime}秒以内
       </p>
       {opponentName.length === 0 && <AnnotationText>まだ相手がいません</AnnotationText>}
+      {opponentName.length > 0 && <p>相手の名前：{opponentName}</p>}
       {opponentName.length > 0 && (
-        <div>
-          <p>相手の名前：{opponentName}</p>
+        <ButtonRow>
           <Button onClick={onFinishPreparing} disabled={isReadyToFight}>
             準備完了
           </Button>
-        </div>
+          <Button onClick={handleKick} disabled={isReadyToFight || isKickProcessing}>
+            このゲストを追い出す
+          </Button>
+        </ButtonRow>
       )}
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
     </Div>
