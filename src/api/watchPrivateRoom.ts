@@ -19,3 +19,15 @@ export function watchGuestName(roomId: string, onChange: (s: string) => void) {
     onChange(snapshot.val());
   });
 }
+
+export function watchGuestIsKickedAt(roomId: string, onChange: (ts: number | null) => void) {
+  const guestIsKickedAtRef = ref(database, DATABASE_PATHS_FOR_ROOMS.guestIsKickedAt(roomId));
+
+  return onValue(guestIsKickedAtRef, (snapshot) => {
+    if (typeof snapshot.val() === "number") {
+      onChange(snapshot.val());
+    } else {
+      onChange(null);
+    }
+  });
+}

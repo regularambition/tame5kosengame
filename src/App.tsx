@@ -153,7 +153,7 @@ function App() {
           setMatchInfo(DEFAULT_MATCH_INFO);
           setScreen(SCREEN_NAMES.PRIVATE_MATCH);
         }}
-      ></InBattleScreen>
+      />
     );
   }
 
