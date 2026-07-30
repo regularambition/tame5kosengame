@@ -26,6 +26,7 @@ import {
 
 import {isHost, isPlayerRole, ROLES_IN_BATTLE, RolesInBattleId} from "../constants/rolesInBattle";
 import {MatchInfo} from "../types/MatchInfo";
+import {kickGuest} from "../api/kickGuest";
 
 type PrivateMatchScreenProps = {
   matchInfo: MatchInfo;
@@ -121,6 +122,7 @@ function MatchRulesSettingDiv({
 }
 
 type WaitingForGuestDivProps = {
+  roomId: string;
   joinCode: string;
   matchPoint: string;
   thinkingTime: string;
@@ -131,6 +133,7 @@ type WaitingForGuestDivProps = {
 };
 
 function WaitingForGuestDiv({
+  roomId,
   joinCode,
   matchPoint,
   thinkingTime,
@@ -156,7 +159,16 @@ function WaitingForGuestDiv({
   const [isKickProcessing, setIsKickProcessing] = useState<boolean>(false);
 
   const handleKick = async () => {
+    if (isKickProcessing) {
+      return;
+    }
+
     setIsKickProcessing(true);
+    try {
+      await kickGuest(roomId);
+    } catch (e) {
+      console.log(e);
+    }
     setIsKickProcessing(false);
   };
 
@@ -558,6 +570,7 @@ export function PrivateMatchScreen({
       )}
       {state === STATES.I_AM_HOST && (
         <WaitingForGuestDiv
+          roomId={roomId}
           joinCode={joinCode}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}

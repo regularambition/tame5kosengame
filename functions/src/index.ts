@@ -32,7 +32,8 @@ import {
   leavePrivateRoom,
   deletePrivateRoom,
   markAsReady,
-} from "./roomManaging/privateRoom";
+  kickGuest,
+} from "./roomManaging";
 import {
   submitHand,
   finishIntroPhase,
@@ -55,6 +56,7 @@ export {
   finishResolvedPhase,
   goBackToPrivateLobby,
   resign,
+  kickGuest,
 
   // DBイベントからCloud Tasksを登録するFunction
   enqueuePhaseTransitionTask,
