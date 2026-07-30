@@ -308,7 +308,7 @@ export const submitHand = onCall<SubmitHandRequest>(
           ? guestUid
           : "";
     const result = await roomRef.transaction((room) => {
-      if (room === null || room[GENERAL_ROOM_KEYS.STATE] === null) {
+      if (room == null || room[GENERAL_ROOM_KEYS.STATE] == null) {
         return room;
       }
 
@@ -318,9 +318,9 @@ export const submitHand = onCall<SubmitHandRequest>(
 
       const game = room[GENERAL_ROOM_KEYS.GAME];
       if (
-        game === null ||
-        game[GENERAL_ROOM_KEYS.PHASE] === null ||
-        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+        game == null ||
+        game[GENERAL_ROOM_KEYS.PHASE] == null ||
+        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] == null
       ) {
         return room;
       }
@@ -397,7 +397,7 @@ export const submitHand = onCall<SubmitHandRequest>(
       !finalGuest ||
       !finalGame ||
       !finalGame[GENERAL_ROOM_KEYS.PHASE] ||
-      finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] === null
+      finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] == null
     ) {
       throw new HttpsError("failed-precondition", "Private room data is incomplete.");
     }
