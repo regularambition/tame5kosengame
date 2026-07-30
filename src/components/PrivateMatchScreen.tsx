@@ -183,7 +183,7 @@ function WaitingForGuestDiv({
           <Button onClick={onFinishPreparing} disabled={isReadyToFight}>
             準備完了
           </Button>
-          <Button onClick={handleKick} disabled={isReadyToFight || isKickProcessing}>
+          <Button onClick={handleKick} disabled={isKickProcessing}>
             このゲストを追い出す
           </Button>
         </ButtonRow>
