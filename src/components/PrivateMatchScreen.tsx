@@ -24,7 +24,6 @@ import {
   ROOM_STATES,
 } from "@tame5kosengame/shared";
 
-import {getTimeGapInMilliSec, retryCount} from "../retryUtility/forRetry";
 import {isHost, isPlayerRole, ROLES_IN_BATTLE, RolesInBattleId} from "../constants/rolesInBattle";
 import {MatchInfo} from "../types/MatchInfo";
 
@@ -267,7 +266,7 @@ function WaitingForHostOperationDiv({
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
       {!isPlayer && (
         <p>
-          ホストの対戦相手：{guestName}
+          ホストの対戦相手：{guestName === "" ? "### 入室待ち ###" : guestName}
           <br />
           試合開始までお待ち下さい
         </p>
@@ -298,16 +297,13 @@ export function PrivateMatchScreen({
   const [thinkingTime, setThinkingTime] = useState<string>(`${matchInfo.thinkingTimeInSec}`);
   const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [joinCode, setJoinCode] = useState<string>("");
+  const [joinCode, setJoinCode] = useState<string>(matchInfo.joinCode);
   const [isEntering, setIsEntering] = useState<boolean>(false);
   const [roomId, setRoomId] = useState<string>(matchInfo.roomId);
   const [isBackProcessing, setIsBackProcessing] = useState<boolean>(false);
   const [hostName, setHostName] = useState<string>(matchInfo.hostName);
   const [guestName, setGuestName] = useState<string>(matchInfo.guestName);
   const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
-
-  const remainingRetryRef = useRef<number>(retryCount);
-  const timeoutIdRef = useRef<number | null>(null);
 
   function buildMatchInfo(): MatchInfo {
     let role: RolesInBattleId = ROLES_IN_BATTLE.HOST_OF_PRIVATE_MATCH;
@@ -325,17 +321,9 @@ export function PrivateMatchScreen({
       guestName: guestName,
       matchPoint: parseInt(matchPoint),
       thinkingTimeInSec: parseInt(thinkingTime),
+      joinCode: joinCode,
     };
   }
-
-  useEffect(() => {
-    return () => {
-      if (timeoutIdRef.current !== null) {
-        window.clearTimeout(timeoutIdRef.current);
-        timeoutIdRef.current = null;
-      }
-    };
-  }, []);
 
   useEffect(() => {
     const watchPrivateRoomStateArg = (st: RoomState) => {
@@ -532,26 +520,10 @@ export function PrivateMatchScreen({
     try {
       await markAsReady(roomId);
     } catch (e) {
-      --remainingRetryRef.current;
       console.log(`e = ${e}`);
-      if (remainingRetryRef.current === 0) {
-        setIsReadyToFight(false);
-        setErrorMessage("準備完了通知に失敗しました");
-      } else {
-        const timeGap = getTimeGapInMilliSec();
-        if (timeoutIdRef.current !== null) {
-          window.clearTimeout(timeoutIdRef.current);
-        }
-        timeoutIdRef.current = window.setTimeout(handleFinishPreparing, timeGap);
-        return;
-      }
+      setIsReadyToFight(false);
+      setErrorMessage("準備完了通知に失敗しました");
     }
-
-    if (timeoutIdRef.current !== null) {
-      window.clearTimeout(timeoutIdRef.current);
-    }
-    timeoutIdRef.current = null;
-    remainingRetryRef.current = retryCount;
   };
 
   return (

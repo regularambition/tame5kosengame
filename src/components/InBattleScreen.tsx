@@ -63,6 +63,8 @@ import {MatchInfo} from "../types/MatchInfo";
 import {watchCheater} from "../api/inBattle/watchCheater";
 import {watchResigner} from "../api/inBattle/watchResigner";
 import {resign} from "../api/inBattle/resign";
+import {BackArrowButton} from "./ui/BackArrowButton";
+import {leavePrivateRoom} from "../api/leavePrivateRoom";
 
 type MainDivProps = {
   children: ReactNode;
@@ -700,8 +702,13 @@ function FinishedPhaseDiv({
 type InBattleScreenProps = {
   matchInfo: MatchInfo;
   onBackToPrivateLobby: () => void;
+  onLeaveAsSpectator: () => void;
 };
-export function InBattleScreen({matchInfo, onBackToPrivateLobby}: InBattleScreenProps) {
+export function InBattleScreen({
+  matchInfo,
+  onBackToPrivateLobby,
+  onLeaveAsSpectator,
+}: InBattleScreenProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>(GAME_PHASES.INTRO);
   const [roundNumber, setRoundNumber] = useState<number>(INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER);
 
@@ -755,9 +762,29 @@ export function InBattleScreen({matchInfo, onBackToPrivateLobby}: InBattleScreen
   const [isResigning, setIsResigning] = useState<boolean>(false);
 
   const handleResign = async () => {
+    if (!canResign) {
+      alert("観戦者は降参できません");
+      return;
+    }
+
     setIsResigning(true);
     await resign(matchInfo.roomId, isPrivateMatch(matchInfo.role));
     setIsResigning(false);
+  };
+
+  const [isLeavingAsSpectator, setIsLeavingAsSpectator] = useState<boolean>(false);
+
+  const handleLeaveAsSpectator = async () => {
+    if (isPlayerRole(matchInfo.role)) {
+      alert("観戦者が退出する用のボタンです");
+      return;
+    }
+
+    setIsLeavingAsSpectator(true);
+    await leavePrivateRoom(false, matchInfo.roomId);
+    setIsLeavingAsSpectator(false);
+    // matchInfoを初期状態に戻してプライベートマッチ選択画面へ戻る
+    onLeaveAsSpectator();
   };
 
   return (
@@ -765,6 +792,12 @@ export function InBattleScreen({matchInfo, onBackToPrivateLobby}: InBattleScreen
       {isPrivateMatch(matchInfo.role) && <SpectatorUiDiv spectatorCount={spectatorCount} />}
       {canResign && (
         <ResignButton disabled={isResigning} onClick={async () => await handleResign()} />
+      )}
+      {isSpectator(matchInfo.role) && (
+        <BackArrowButton
+          disabled={isLeavingAsSpectator}
+          onClick={async () => await handleLeaveAsSpectator()}
+        />
       )}
       <PlayerStatusDiv
         userName={isDownsideGuest ? matchInfo.hostName : matchInfo.guestName}

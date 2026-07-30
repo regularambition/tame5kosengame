@@ -63,7 +63,7 @@ async function reserveJoinCode(internalRoomId: string) {
     // DBの状態が変わった場合に再試行が走る（DBの状態が再度評価される）
     // という構造を実現させられるため堅牢な処理を行うことが可能
     const result = await joinCodeRef.transaction((currentData) => {
-      if (currentData !== null) {
+      if (currentData != null) {
         // transaction内部でundefinedを返すと中止され
         // 別の参加コードをもとにした作成試行が始まる
         return undefined;
@@ -175,65 +175,128 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
-    if (typeof hostUid !== "string") {
-      throw new HttpsError("internal", "Invalid private room data.");
-    }
-    if (hostUid === uid) {
-      throw new HttpsError("failed-precondition", "Host cannot act as guest.");
-    }
+    const result = await roomRef.transaction((room) => {
+      if (room == null) {
+        return room;
+      }
 
-    const hostName = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.NAME).val();
-    if (typeof hostName !== "string") {
-      throw new HttpsError("internal", "Invalid private room data.");
-    }
-    const matchPoint = roomSnapshot
-      .child(GENERAL_ROOM_KEYS.RULES)
-      .child(GENERAL_ROOM_KEYS.MATCH_POINT)
-      .val();
-    if (typeof matchPoint !== "number") {
-      throw new HttpsError("internal", "Invalid private room data.");
-    }
-    const thinkingTime = roomSnapshot
-      .child(GENERAL_ROOM_KEYS.RULES)
-      .child(GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC)
-      .val();
-    if (typeof thinkingTime !== "number") {
-      throw new HttpsError("internal", "Invalid private room data.");
-    }
+      if (room[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.CLOSED) {
+        return room;
+      }
 
-    if (isPlayer) {
-      const guestUidRef = roomRef.child(GENERAL_ROOM_KEYS.GUEST);
-      const result = await guestUidRef.transaction((currentGuest) => {
-        if (currentGuest !== null) {
-          return undefined;
+      const host = room[GENERAL_ROOM_KEYS.HOST];
+      if (
+        host == null ||
+        typeof host[GENERAL_ROOM_KEYS.UID] !== "string" ||
+        typeof host[GENERAL_ROOM_KEYS.NAME] !== "string"
+      ) {
+        return room;
+      }
+
+      if (uid === host[GENERAL_ROOM_KEYS.UID]) {
+        // ホストがゲストまたは観戦者として入ろうとしている場合は何も更新せず終了
+        return room;
+      }
+
+      const rules = room[GENERAL_ROOM_KEYS.RULES];
+      if (
+        rules == null ||
+        typeof rules[GENERAL_ROOM_KEYS.MATCH_POINT] !== "number" ||
+        typeof rules[GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC] !== "number"
+      ) {
+        return room;
+      }
+
+      const guest = room[GENERAL_ROOM_KEYS.GUEST];
+      const spectators = room[PRIVATE_ROOM_KEYS.SPECTATORS];
+
+      if (isPlayer) {
+        // ゲストとして入る場合の処理
+        if (guest != null || spectators?.[uid] === true) {
+          // 既に埋まっている・既に観戦者として入っている場合は何も更新せず終了
+          return room;
         }
 
-        return {
+        room[GENERAL_ROOM_KEYS.GUEST] = {
           [GENERAL_ROOM_KEYS.UID]: uid,
           [GENERAL_ROOM_KEYS.NAME]: userName,
           [PRIVATE_ROOM_KEYS.READY]: false,
         };
-      });
-      if (!result.committed) {
-        throw new HttpsError("failed-precondition", "Private room is already occupied.");
+      } else {
+        // 観戦者として入る場合の処理
+        const guestUid = guest?.[GENERAL_ROOM_KEYS.UID];
+        if (uid === guestUid) {
+          // 既にゲストとして入っている場合は何も更新せず終了
+          return room;
+        }
+
+        room[PRIVATE_ROOM_KEYS.SPECTATORS] ??= {};
+        room[PRIVATE_ROOM_KEYS.SPECTATORS][uid] = true;
       }
 
-      await roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid).remove();
-    } else if (
-      roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
+      return room;
+    });
+    if (!result.committed) {
+      throw new HttpsError("failed-precondition", "Cannot enter directed private room.");
+    }
+    if (!result.snapshot.exists()) {
+      throw new HttpsError("not-found", "Private room not found after transaction.");
+    }
+
+    const finalRoom = result.snapshot.val();
+    if (finalRoom[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.CLOSED) {
+      throw new HttpsError("failed-precondition", "Cannot enter a closed room.");
+    }
+
+    const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
+    if (
+      finalHost == null ||
+      typeof finalHost[GENERAL_ROOM_KEYS.UID] !== "string" ||
+      typeof finalHost[GENERAL_ROOM_KEYS.NAME] !== "string"
     ) {
-      throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
+      throw new HttpsError("failed-precondition", "Host data is broken.");
+    }
+    if (uid === finalHost[GENERAL_ROOM_KEYS.UID]) {
+      throw new HttpsError("failed-precondition", "Host cannot act as a guest or spectators.");
+    }
+
+    const finalRules = finalRoom[GENERAL_ROOM_KEYS.RULES];
+    if (
+      finalRules == null ||
+      typeof finalRules[GENERAL_ROOM_KEYS.MATCH_POINT] !== "number" ||
+      typeof finalRules[GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC] !== "number"
+    ) {
+      throw new HttpsError("failed-precondition", "Rules data is broken.");
+    }
+
+    const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
+    const finalSpectators = finalRoom[PRIVATE_ROOM_KEYS.SPECTATORS];
+    if (isPlayer) {
+      if (finalSpectators?.[uid] === true) {
+        throw new HttpsError("failed-precondition", "Spectators cannot act as a guest.");
+      }
+      if (finalGuest == null) {
+        throw new HttpsError("failed-precondition", "Guest registration failed.");
+      }
+      if (uid !== finalGuest[GENERAL_ROOM_KEYS.UID]) {
+        throw new HttpsError("failed-precondition", "Private room is already occupied.");
+      }
     } else {
-      const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
-      await spectatorRef.set(true);
+      const finalGuestUid = finalGuest?.[GENERAL_ROOM_KEYS.UID];
+      if (uid === finalGuestUid) {
+        throw new HttpsError("failed-precondition", "Guest cannot act as spectators.");
+      }
+
+      if (finalSpectators?.[uid] !== true) {
+        throw new HttpsError("failed-precondition", "Spectator registration failed.");
+      }
     }
 
     return {
       roomId: roomId,
-      hostName: hostName,
-      matchPoint: matchPoint.toString(),
-      thinkingTime: thinkingTime.toString(),
+      hostName: finalHost[GENERAL_ROOM_KEYS.NAME],
+      matchPoint: `${finalRules[GENERAL_ROOM_KEYS.MATCH_POINT]}`,
+      thinkingTime: `${finalRules[GENERAL_ROOM_KEYS.THINKING_TIME_IN_SEC]}`,
     };
   },
 );
@@ -268,51 +331,92 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
     }
 
     if (isPlayer) {
-      // transactionの初回処理では引数が強制的にnull扱いされる場合があるため
-      // 本当にnullになっているのか実際はデータが存在するのにnull扱いされているのかを
-      // 区別するために一度きりではなく何度かDBを確認させる必要がある
-      let retryCount = 10;
+      // transactionの初回処理ではローカルキャッシュを参照した結果
+      // DBの実態とは異なるのにもかかわらず引数が強制的にnull扱いされる場合があるため
+      // 真のDBと同じ状態を参照している状態において更新するために
+      // 古い情報を参照している場合は何も更新せずすぐさま値をreturnすることで
+      // 「このreturnで返している値により示される状態に更新します」という意思をDBに伝達し
+      // 「お前の見ている情報は古いから最新の状態を見てやり直せ」という指示をDBから受け取るようにする
       let matchedGuestUid = false;
       const result = await roomRef.transaction((currentRoom) => {
-        if (currentRoom === null) {
-          if (retryCount > 0) {
-            --retryCount;
-            return currentRoom;
-          } else {
-            return undefined;
-          }
+        matchedGuestUid = false;
+        if (currentRoom == null) {
+          return currentRoom;
         }
 
+        const state = currentRoom[GENERAL_ROOM_KEYS.STATE];
+        if (state !== ROOM_STATES.PREPARING) {
+          return currentRoom;
+        }
+
+        const host = currentRoom[GENERAL_ROOM_KEYS.HOST];
         const guest = currentRoom[GENERAL_ROOM_KEYS.GUEST];
-        if (guest === null || guest === undefined) {
-          if (retryCount > 0) {
-            --retryCount;
-            return currentRoom;
-          } else {
-            return undefined;
-          }
+        if (host == null || guest == null) {
+          return currentRoom;
         }
 
-        if (currentRoom[GENERAL_ROOM_KEYS.GUEST][GENERAL_ROOM_KEYS.UID] !== uid) {
-          return undefined;
+        if (guest[GENERAL_ROOM_KEYS.UID] !== uid) {
+          return currentRoom;
         }
 
         matchedGuestUid = true;
-        const nextRoom = {...currentRoom};
-        nextRoom[GENERAL_ROOM_KEYS.HOST][PRIVATE_ROOM_KEYS.READY] = false;
-        delete nextRoom[GENERAL_ROOM_KEYS.GUEST];
-        return nextRoom;
+        host[PRIVATE_ROOM_KEYS.READY] = false;
+        delete currentRoom[GENERAL_ROOM_KEYS.GUEST];
+        return currentRoom;
       });
-      if (!result.committed || !matchedGuestUid) {
+      if (!result.committed) {
         throw new HttpsError("failed-precondition", "Cannot leave this room.");
+      }
+      if (!result.snapshot.exists()) {
+        throw new HttpsError("not-found", "Private room not found after transaction.");
+      }
+      if (!matchedGuestUid) {
+        throw new HttpsError("permission-denied", "You are not the guest of this room.");
+      }
+
+      const finalRoom = result.snapshot.val();
+      const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
+      if (finalState !== ROOM_STATES.PREPARING) {
+        throw new HttpsError("failed-precondition", "Room is not in preparing state.");
+      }
+      const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
+      if (finalHost == null) {
+        throw new HttpsError("failed-precondition", "Room is broken(lacking host).");
       }
     } else if (
       roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
     ) {
       throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
-      const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
-      await spectatorRef.remove();
+      let matchedSpectatorUid = false;
+      const result = await roomRef.transaction((currentRoom) => {
+        matchedSpectatorUid = false;
+        if (currentRoom == null) {
+          return currentRoom;
+        }
+
+        const spectators = currentRoom[PRIVATE_ROOM_KEYS.SPECTATORS];
+        if (spectators == null) {
+          return currentRoom;
+        }
+
+        if (spectators[uid] !== true) {
+          return currentRoom;
+        }
+
+        matchedSpectatorUid = true;
+        delete spectators[uid];
+        return currentRoom;
+      });
+      if (!result.committed) {
+        throw new HttpsError("failed-precondition", "Cannot leave this room.");
+      }
+      if (!result.snapshot.exists()) {
+        throw new HttpsError("not-found", "Private room not found after transaction.");
+      }
+      if (!matchedSpectatorUid) {
+        throw new HttpsError("permission-denied", "You are not a spectator of this room.");
+      }
     }
 
     return {
@@ -389,12 +493,16 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
     }
 
     const result = await roomRef.transaction((room) => {
-      if (room === null) {
+      if (room == null) {
         return room;
       }
 
       const host = room[GENERAL_ROOM_KEYS.HOST];
       const guest = room[GENERAL_ROOM_KEYS.GUEST];
+      if (guest == null) {
+        // ゲストの退出が割り込んできた場合何も更新せず終了
+        return room;
+      }
       const game = room[GENERAL_ROOM_KEYS.GAME];
 
       const currentPlayerIsReady =
@@ -476,6 +584,12 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
     const finalRoom = result.snapshot.val();
     const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
     const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
+    if (finalGuest == null) {
+      throw new HttpsError(
+        "failed-precondition",
+        "In order to mark as ready, both of host and guest must have non-null value.",
+      );
+    }
     const finalPlayer =
       finalHost?.[GENERAL_ROOM_KEYS.UID] === uid
         ? finalHost

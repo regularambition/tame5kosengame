@@ -12,7 +12,7 @@ export function watchGamePhase(
   const gamePhaseRef = ref(database, DATABASE_PATHS_FOR_ROOMS.gamePhase(roomId, isPrivateMatch));
 
   return onValue(gamePhaseRef, (snapshot) => {
-    if (snapshot.val() !== null) {
+    if (snapshot.val() != null) {
       onChange(snapshot.val());
     }
   });

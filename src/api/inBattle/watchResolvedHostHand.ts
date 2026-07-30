@@ -15,7 +15,7 @@ export function watchResolvedHostHand(
   );
 
   return onValue(hostHandRef, (snapshot) => {
-    if (snapshot.val() !== null) {
+    if (snapshot.val() != null) {
       onChange(snapshot.val());
     }
   });

@@ -8,6 +8,9 @@ export type MatchInfo = {
   guestName: string;
   matchPoint: number;
   thinkingTimeInSec: number;
+
+  // プライベートマッチでのみ利用
+  joinCode: string;
 };
 
 export const DEFAULT_MATCH_INFO = {
@@ -17,4 +20,5 @@ export const DEFAULT_MATCH_INFO = {
   guestName: "",
   matchPoint: DEFAULT_MATCH_RULES.matchPoint,
   thinkingTimeInSec: DEFAULT_MATCH_RULES.thinkingTimeInSec,
-};
+  joinCode: "",
+} satisfies MatchInfo;
