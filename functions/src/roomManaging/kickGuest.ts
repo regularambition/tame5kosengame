@@ -7,8 +7,13 @@ import {
   DATABASE_PATHS_FOR_ROOMS,
   GENERAL_ROOM_KEYS,
   PRIVATE_ROOM_KEYS,
+  DURATION_IN_MILLI_SEC,
 } from "@tame5kosengame/shared";
 import type {KickGuestRequest, KickGuestResponse} from "@tame5kosengame/shared";
+
+function findGuestIsKickedAt(): number {
+  return Date.now() + DURATION_IN_MILLI_SEC.KICKING_INTERVAL;
+}
 
 export const kickGuest = onCall<KickGuestRequest>(async (request): Promise<KickGuestResponse> => {
   if (!request.auth) {
@@ -47,7 +52,7 @@ export const kickGuest = onCall<KickGuestRequest>(async (request): Promise<KickG
       return currentRoom;
     }
 
-    currentRoom[PRIVATE_ROOM_KEYS.IS_GUEST_KICKED] = true;
+    currentRoom[PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT] = findGuestIsKickedAt();
 
     return currentRoom;
   });
@@ -76,8 +81,8 @@ export const kickGuest = onCall<KickGuestRequest>(async (request): Promise<KickG
     throw new HttpsError("failed-precondition", "Room is broken(lacking guest).");
   }
 
-  const finalIsGuestKicked = finalRoom[PRIVATE_ROOM_KEYS.IS_GUEST_KICKED];
-  if (finalIsGuestKicked !== true) {
+  const finalGuestIsKickedAt = finalRoom[PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT];
+  if (typeof finalGuestIsKickedAt !== "number") {
     throw new HttpsError("internal", "Marking for kicking failed.");
   }
 

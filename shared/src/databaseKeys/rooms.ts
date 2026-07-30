@@ -37,7 +37,7 @@ export const PRIVATE_ROOM_KEYS = {
   JOIN_CODE_HASH: "joinCodeHash",
   READY: "ready",
   BACK_TO_LOBBY_AT: "backToLobbyAt",
-  IS_GUEST_KICKED: "isGuestKicked",
+  GUEST_IS_KICKED_AT: "guestIsKickedAt",
 } as const;
 
 export const PRIVATE_ROOM_JOIN_CODE_KEYS = {
@@ -107,8 +107,8 @@ export const DATABASE_PATHS_FOR_ROOMS = {
   nextPhaseAt: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
 
-  isGuestKicked: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.IS_GUEST_KICKED}`,
+  guestIsKickedAt: (roomId: string) =>
+    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT}`,
 
   privateRoomJoinCode: (joinCodeHash: string) =>
     `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,

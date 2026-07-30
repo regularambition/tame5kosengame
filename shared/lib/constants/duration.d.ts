@@ -3,4 +3,5 @@ export declare const DURATION_IN_MILLI_SEC: {
     readonly HAND_SUBMISSION_DEADLINE_BUFFER: 10000;
     readonly PRIVATE_RESULT_DISPLAY: 10000;
     readonly RECONNECT_GRACE: 30000;
+    readonly KICKING_INTERVAL: 5000;
 };
