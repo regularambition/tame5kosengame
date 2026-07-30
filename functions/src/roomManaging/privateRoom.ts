@@ -430,12 +430,16 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
     }
 
     const result = await roomRef.transaction((room) => {
-      if (room === null) {
+      if (room == null) {
         return room;
       }
 
       const host = room[GENERAL_ROOM_KEYS.HOST];
       const guest = room[GENERAL_ROOM_KEYS.GUEST];
+      if (guest == null) {
+        // ゲストの退出が割り込んできた場合何も更新せず終了
+        return room;
+      }
       const game = room[GENERAL_ROOM_KEYS.GAME];
 
       const currentPlayerIsReady =
@@ -517,6 +521,12 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
     const finalRoom = result.snapshot.val();
     const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
     const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
+    if (finalGuest == null) {
+      throw new HttpsError(
+        "failed-precondition",
+        "In order to mark as ready, both of host and guest must have non-null value.",
+      );
+    }
     const finalPlayer =
       finalHost?.[GENERAL_ROOM_KEYS.UID] === uid
         ? finalHost
