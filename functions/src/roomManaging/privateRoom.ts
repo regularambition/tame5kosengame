@@ -483,15 +483,6 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
       throw new HttpsError("not-found", "Private room not found.");
     }
 
-    const hostUid = roomSnapshot.child(GENERAL_ROOM_KEYS.HOST).child(GENERAL_ROOM_KEYS.UID).val();
-    const guestUid = roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val();
-    if (typeof hostUid !== "string" || typeof guestUid !== "string") {
-      throw new HttpsError("internal", "Incomplete database.");
-    }
-    if (uid !== hostUid && uid !== guestUid) {
-      throw new HttpsError("failed-precondition", "Invalid user.");
-    }
-
     const result = await roomRef.transaction((room) => {
       if (room == null) {
         return room;
@@ -499,47 +490,38 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
 
       const host = room[GENERAL_ROOM_KEYS.HOST];
       const guest = room[GENERAL_ROOM_KEYS.GUEST];
-      if (guest == null) {
-        // ゲストの退出が割り込んできた場合何も更新せず終了
+      if (host == null || guest == null) {
+        // ホスト及びゲストの両方がいる状態でないと更新させない
+        // ゲストの退出が割り込んできた場合にも同様に対応させる
         return room;
       }
-      const game = room[GENERAL_ROOM_KEYS.GAME];
 
-      const currentPlayerIsReady =
-        (hostUid === uid && host?.[PRIVATE_ROOM_KEYS.READY] === true) ||
-        (guestUid === uid && guest?.[PRIVATE_ROOM_KEYS.READY] === true);
-
-      /*
-       * 前回の呼び出しでDB更新には成功したものの、
-       * Cloud Tasksへの登録に失敗した場合の再試行を許可する。
-       */
-      if (
-        room[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.PLAYING &&
-        game?.[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.INTRO &&
-        currentPlayerIsReady
-      ) {
+      if (uid !== host[GENERAL_ROOM_KEYS.UID] && uid !== guest[GENERAL_ROOM_KEYS.UID]) {
+        // ホストでもゲストでもないユーザーによる呼び出しの場合は処理させない
         return room;
       }
 
       if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PREPARING) {
-        return undefined;
+        return room;
       }
+
+      const currentPlayerIsReady =
+        (uid === host[GENERAL_ROOM_KEYS.UID] && host?.[PRIVATE_ROOM_KEYS.READY] === true) ||
+        (uid === guest[GENERAL_ROOM_KEYS.UID] && guest?.[PRIVATE_ROOM_KEYS.READY] === true);
 
       // 同じプレイヤーからの重複した準備完了はそのまま返す
       if (currentPlayerIsReady) {
         return room;
       }
 
-      if (hostUid === uid) {
+      if (uid === host[GENERAL_ROOM_KEYS.UID]) {
         host[PRIVATE_ROOM_KEYS.READY] = true;
         host[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
         host[GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
-      } else if (guestUid === uid) {
+      } else {
         guest[PRIVATE_ROOM_KEYS.READY] = true;
         guest[GENERAL_ROOM_KEYS.MANA] = INITIAL_VALUES_IN_BATTLE.MANA;
         guest[GENERAL_ROOM_KEYS.SCORE] = INITIAL_VALUES_IN_BATTLE.SCORE;
-      } else {
-        return undefined;
       }
 
       const bothReady =
@@ -584,38 +566,78 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
     const finalRoom = result.snapshot.val();
     const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
     const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
-    if (finalGuest == null) {
+    if (finalHost == null || finalGuest == null) {
       throw new HttpsError(
         "failed-precondition",
         "In order to mark as ready, both of host and guest must have non-null value.",
       );
     }
+
     const finalPlayer =
-      finalHost?.[GENERAL_ROOM_KEYS.UID] === uid
+      finalHost[GENERAL_ROOM_KEYS.UID] === uid
         ? finalHost
-        : finalGuest?.[GENERAL_ROOM_KEYS.UID] === uid
+        : finalGuest[GENERAL_ROOM_KEYS.UID] === uid
           ? finalGuest
           : null;
-    if (finalPlayer?.[PRIVATE_ROOM_KEYS.READY] !== true) {
+    if (finalPlayer == null) {
+      throw new HttpsError("failed-precondition", "Invalid user.");
+    }
+
+    if (finalPlayer[PRIVATE_ROOM_KEYS.READY] !== true) {
       throw new HttpsError("failed-precondition", "Player was not marked as ready.");
     }
 
+    const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
     const bothReady =
-      finalHost?.[PRIVATE_ROOM_KEYS.READY] === true &&
-      finalGuest?.[PRIVATE_ROOM_KEYS.READY] === true;
-    const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
+      finalHost[PRIVATE_ROOM_KEYS.READY] === true && finalGuest[PRIVATE_ROOM_KEYS.READY] === true;
 
-    if (
-      bothReady &&
-      finalRoom[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.PLAYING &&
-      finalGame?.[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.INTRO
-    ) {
-      const nextPhaseAt =
-        finalGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND]?.[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
-
-      if (typeof nextPhaseAt !== "number") {
-        throw new HttpsError("internal", "Intro phase deadline is missing.");
+    if (!bothReady) {
+      if (finalState !== ROOM_STATES.PREPARING) {
+        throw new HttpsError("failed-precondition", "Room is not in preparing state.");
       }
+
+      return {
+        hasSucceeded: true,
+      };
+    }
+
+    if (finalState !== ROOM_STATES.PLAYING) {
+      throw new HttpsError(
+        "internal",
+        "Failed to change the state of room from preparing to playing.",
+      );
+    }
+
+    const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
+    if (finalGame == null) {
+      throw new HttpsError("internal", "Failed to write the layer of game.");
+    }
+    if (finalGame[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.INTRO) {
+      throw new HttpsError("internal", "Failed to write the phase of game as intro.");
+    }
+    if (finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER) {
+      throw new HttpsError(
+        "internal",
+        `Failed to write the roundNumber of game as ${INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER}.`,
+      );
+    }
+
+    const finalResolvedRound = finalGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+    if (finalResolvedRound == null) {
+      throw new HttpsError("internal", "Failed to write the layer of resolvedRound.");
+    }
+    if (
+      finalResolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] !==
+      INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER - 1
+    ) {
+      throw new HttpsError(
+        "internal",
+        `Failed to write the roundNumber of resolvedRound as ${INITIAL_VALUES_IN_BATTLE.ROUND_NUMBER - 1}.`,
+      );
+    }
+    const finalNextPhaseAt = finalResolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
+    if (typeof finalNextPhaseAt !== "number") {
+      throw new HttpsError("internal", "Failed to write nextPhaseAt.");
     }
 
     return {
