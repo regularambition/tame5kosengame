@@ -61,12 +61,8 @@ function MakeOrEnterDiv({onClickMake, onClickEnter}: MakeOrEnterDivProps) {
   return (
     <Div>
       <ButtonRow>
-        <Button onClick={onClickMake} type="button">
-          部屋を建てる
-        </Button>
-        <Button onClick={onClickEnter} type="button">
-          部屋に入る
-        </Button>
+        <Button onClick={onClickMake}>部屋を建てる</Button>
+        <Button onClick={onClickEnter}>部屋に入る</Button>
       </ButtonRow>
     </Div>
   );
@@ -116,7 +112,7 @@ function MatchRulesSettingDiv({
         value={thinkingTime}
         disabled={isCreatingRoom}
       ></TextInput>
-      <Button onClick={onRoomCreating} type="button" disabled={isCreatingRoom}>
+      <Button onClick={onRoomCreating} disabled={isCreatingRoom}>
         この条件で建てる
       </Button>
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
@@ -164,7 +160,7 @@ function WaitingForGuestDiv({
         <br />
         <span>{joinCode}</span>
       </p>
-      <Button onClick={handleCopy} type="button" disabled={copyAnnotation.length > 0}>
+      <Button onClick={handleCopy} disabled={copyAnnotation.length > 0}>
         参加コードをコピー
       </Button>
       {copyAnnotation.length > 0 && <AnnotationText>{copyAnnotation}</AnnotationText>}
@@ -177,7 +173,7 @@ function WaitingForGuestDiv({
       {opponentName.length > 0 && (
         <div>
           <p>相手の名前：{opponentName}</p>
-          <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+          <Button onClick={onFinishPreparing} disabled={isReadyToFight}>
             準備完了
           </Button>
         </div>
@@ -221,7 +217,7 @@ function EnteringJoinCodeDiv({
       </div>
       <p>入る部屋の参加コードを入力（8桁の半角数字）</p>
       <TextInput onChange={onChangeJoinCode} disabled={isEntering}></TextInput>
-      <Button onClick={onClickEnter} type="button" disabled={isEntering}>
+      <Button onClick={onClickEnter} disabled={isEntering}>
         この部屋に入る
       </Button>
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
@@ -259,7 +255,7 @@ function WaitingForHostOperationDiv({
       </p>
       <p>あなたの役割：{isPlayer ? "対戦相手" : "観戦者"}</p>
       {isPlayer && (
-        <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+        <Button onClick={onFinishPreparing} disabled={isReadyToFight}>
           準備完了
         </Button>
       )}

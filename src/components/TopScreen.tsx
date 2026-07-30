@@ -27,30 +27,18 @@ export function TopScreen({
     <main className="screen using-full-height vertical-alignment horizontal-centering vertical-centering">
       <ScreenBanner s={SCREEN_NAMES.TOP} userName={userName} />
       <ButtonRow>
-        <Button onClick={onRandomMatchClick} type="button">
-          ランダムマッチ
-        </Button>
-        <Button onClick={onPrivateMatchClick} type="button">
-          プライベートマッチ
-        </Button>
+        <Button onClick={onRandomMatchClick}>ランダムマッチ</Button>
+        <Button onClick={onPrivateMatchClick}>プライベートマッチ</Button>
       </ButtonRow>
 
       <ButtonRow>
-        <Button onClick={onRulesClick} type="button">
-          遊び方
-        </Button>
-        <Button onClick={onSettingsClick} type="button">
-          設定の変更
-        </Button>
+        <Button onClick={onRulesClick}>遊び方</Button>
+        <Button onClick={onSettingsClick}>設定の変更</Button>
       </ButtonRow>
 
       <ButtonRow>
-        <Button onClick={onUserNameClick} type="button">
-          ユーザー名変更
-        </Button>
-        <Button onClick={onCreditClick} type="button">
-          クレジット
-        </Button>
+        <Button onClick={onUserNameClick}>ユーザー名変更</Button>
+        <Button onClick={onCreditClick}>クレジット</Button>
       </ButtonRow>
     </main>
   );

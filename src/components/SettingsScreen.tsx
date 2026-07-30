@@ -56,12 +56,8 @@ export function SettingsScreen({gameSettings, onChangeGameSettings, onBack}: Set
       </div>
 
       <ButtonRow>
-        <Button onClick={onBack} type="button">
-          変更せず戻る
-        </Button>
-        <Button onClick={handleConfirm} type="button">
-          変更内容を確定
-        </Button>
+        <Button onClick={onBack}>変更せず戻る</Button>
+        <Button onClick={handleConfirm}>変更内容を確定</Button>
       </ButtonRow>
     </main>
   );
