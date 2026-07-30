@@ -124,7 +124,7 @@ type WaitingForGuestDivProps = {
   joinCode: string;
   matchPoint: string;
   thinkingTime: string;
-  opponentName: string;
+  guestName: string;
   onFinishPreparing: () => void | Promise<void>;
   isReadyToFight: boolean;
   errorMessage: string;
@@ -134,7 +134,7 @@ function WaitingForGuestDiv({
   joinCode,
   matchPoint,
   thinkingTime,
-  opponentName,
+  guestName,
   onFinishPreparing,
   isReadyToFight,
   errorMessage,
@@ -176,9 +176,9 @@ function WaitingForGuestDiv({
         <br />
         {matchPoint}点先取で勝利、選択は{thinkingTime}秒以内
       </p>
-      {opponentName.length === 0 && <AnnotationText>まだ相手がいません</AnnotationText>}
-      {opponentName.length > 0 && <p>相手の名前：{opponentName}</p>}
-      {opponentName.length > 0 && (
+      {guestName.length === 0 && <AnnotationText>まだ相手がいません</AnnotationText>}
+      {guestName.length > 0 && <p>相手の名前：{guestName}</p>}
+      {guestName.length > 0 && (
         <ButtonRow>
           <Button onClick={onFinishPreparing} disabled={isReadyToFight}>
             準備完了
@@ -561,7 +561,7 @@ export function PrivateMatchScreen({
           joinCode={joinCode}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}
-          opponentName={guestName}
+          guestName={guestName}
           onFinishPreparing={handleFinishPreparing}
           isReadyToFight={isReadyToFight}
           errorMessage={errorMessage}
