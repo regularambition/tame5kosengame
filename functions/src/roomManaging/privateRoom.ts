@@ -337,10 +337,15 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       // 古い情報を参照している場合は何も更新せずすぐさま値をreturnすることで
       // 「このreturnで返している値により示される状態に更新します」という意思をDBに伝達し
       // 「お前の見ている情報は古いから最新の状態を見てやり直せ」という指示をDBから受け取るようにする
-      let matchedGuestUid = false;
+      let savedGuestUid = "";
       const result = await roomRef.transaction((currentRoom) => {
-        matchedGuestUid = false;
+        savedGuestUid = "";
         if (currentRoom == null) {
+          return currentRoom;
+        }
+
+        if (typeof currentRoom[PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT] === "number") {
+          // ゲストの追い出しが割り込んできた場合は何も更新せず終了
           return currentRoom;
         }
 
@@ -355,11 +360,11 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
           return currentRoom;
         }
 
+        savedGuestUid = guest[GENERAL_ROOM_KEYS.UID];
         if (guest[GENERAL_ROOM_KEYS.UID] !== uid) {
           return currentRoom;
         }
 
-        matchedGuestUid = true;
         host[PRIVATE_ROOM_KEYS.READY] = false;
         delete currentRoom[GENERAL_ROOM_KEYS.GUEST];
         return currentRoom;
@@ -370,18 +375,25 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       if (!result.snapshot.exists()) {
         throw new HttpsError("not-found", "Private room not found after transaction.");
       }
-      if (!matchedGuestUid) {
-        throw new HttpsError("permission-denied", "You are not the guest of this room.");
-      }
 
       const finalRoom = result.snapshot.val();
       const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
+
       if (finalState !== ROOM_STATES.PREPARING) {
         throw new HttpsError("failed-precondition", "Room is not in preparing state.");
       }
       const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
       if (finalHost == null) {
         throw new HttpsError("failed-precondition", "Room is broken(lacking host).");
+      }
+
+      if (savedGuestUid !== uid) {
+        throw new HttpsError("permission-denied", "You are not the guest of this room.");
+      }
+
+      const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
+      if (finalGuest != null) {
+        throw new HttpsError("failed-precondition", "failed to leave as a guest.");
       }
     } else if (
       roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).child(GENERAL_ROOM_KEYS.UID).val() === uid
@@ -392,6 +404,12 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       const result = await roomRef.transaction((currentRoom) => {
         matchedSpectatorUid = false;
         if (currentRoom == null) {
+          return currentRoom;
+        }
+
+        const state = currentRoom[GENERAL_ROOM_KEYS.STATE];
+        if (state === ROOM_STATES.CLOSED) {
+          // 部屋の解散が割り込んできた場合は何も更新せず終了
           return currentRoom;
         }
 
@@ -416,6 +434,12 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
       }
       if (!matchedSpectatorUid) {
         throw new HttpsError("permission-denied", "You are not a spectator of this room.");
+      }
+
+      const finalRoom = result.snapshot.val();
+      const finalSpectators = finalRoom[PRIVATE_ROOM_KEYS.SPECTATORS];
+      if (finalSpectators?.[uid] != null) {
+        throw new HttpsError("failed-precondition", "failed to leave as a spectator.");
       }
     }
 
@@ -485,6 +509,11 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
 
     const result = await roomRef.transaction((room) => {
       if (room == null) {
+        return room;
+      }
+
+      if (typeof room[PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT] === "number") {
+        // ゲストの追い出しが割り込んできた場合は何も更新せず終了
         return room;
       }
 
@@ -564,6 +593,14 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
     }
 
     const finalRoom = result.snapshot.val();
+
+    if (typeof finalRoom[PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT] === "number") {
+      // ゲストの追い出しが割り込んできた場合は何も更新せず終了
+      return {
+        hasSucceeded: true,
+      };
+    }
+
     const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
     const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
     if (finalHost == null || finalGuest == null) {
