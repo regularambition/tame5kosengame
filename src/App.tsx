@@ -149,6 +149,10 @@ function App() {
       <InBattleScreen
         matchInfo={matchInfo}
         onBackToPrivateLobby={() => setScreen(SCREEN_NAMES.PRIVATE_MATCH)}
+        onLeaveAsSpectator={() => {
+          setMatchInfo(DEFAULT_MATCH_INFO);
+          setScreen(SCREEN_NAMES.PRIVATE_MATCH);
+        }}
       ></InBattleScreen>
     );
   }
