@@ -316,8 +316,35 @@ export const leavePrivateRoom = onCall<LeavePrivateRoomRequest>(
     ) {
       throw new HttpsError("failed-precondition", "Guest cannot act as spectator.");
     } else {
-      const spectatorRef = roomRef.child(PRIVATE_ROOM_KEYS.SPECTATORS).child(uid);
-      await spectatorRef.remove();
+      let matchedSpectatorUid = false;
+      const result = await roomRef.transaction((currentRoom) => {
+        matchedSpectatorUid = false;
+        if (currentRoom == null) {
+          return currentRoom;
+        }
+
+        const spectators = currentRoom[PRIVATE_ROOM_KEYS.SPECTATORS];
+        if (spectators == null) {
+          return currentRoom;
+        }
+
+        if (spectators[uid] !== true) {
+          return currentRoom;
+        }
+
+        matchedSpectatorUid = true;
+        delete spectators[uid];
+        return currentRoom;
+      });
+      if (!result.committed) {
+        throw new HttpsError("failed-precondition", "Cannot leave this room.");
+      }
+      if (!result.snapshot.exists()) {
+        throw new HttpsError("not-found", "Private room not found after transaction.");
+      }
+      if (!matchedSpectatorUid) {
+        throw new HttpsError("permission-denied", "You are not a spectator of this room.");
+      }
     }
 
     return {
