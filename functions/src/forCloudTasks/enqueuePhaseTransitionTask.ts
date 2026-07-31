@@ -78,7 +78,7 @@ async function enqueueFinishResolvedPhase(
 
 export const enqueuePhaseTransitionTask = onValueWritten(
   {
-    ref: "/privateRooms/{roomId}/game/" + "resolvedRound/nextPhaseAt",
+    ref: "/privateRooms/{roomId}/public/game/" + "resolvedRound/nextPhaseAt",
     region: BACKEND_REGION,
     retry: true,
   },

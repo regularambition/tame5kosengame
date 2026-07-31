@@ -1,4 +1,6 @@
 export declare const GENERAL_ROOM_KEYS: {
+    readonly PUBLIC: "public";
+    readonly CONFIDENTIAL: "confidential";
     readonly CREATED_AT: "createdAt";
     readonly RULES: "rules";
     readonly MATCH_POINT: "matchPoint";
@@ -42,6 +44,7 @@ export declare const PRIVATE_ROOM_JOIN_CODE_KEYS: {
 };
 export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoomsRoot: () => "privateRooms";
+    readonly privateRoomContainer: (roomId: string) => string;
     readonly privateRoom: (roomId: string) => string;
     readonly privateRoomState: (roomId: string) => string;
     readonly privateRoomGuestName: (roomId: string) => string;
@@ -50,6 +53,7 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly hostScore: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly hostMana: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly privateRoomSpectator: (roomId: string) => string;
+    readonly randomRoom: (roomId: string) => string;
     readonly game: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly currentRoundNumber: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly gamePhase: (roomId: string, isPrivateMatch?: boolean) => string;
@@ -65,6 +69,6 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly guestIsKickedAt: (roomId: string) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
-    readonly privateRoomHiddenHandRoot: (roomId: string) => string;
-    readonly privateRoomHiddenHand: (roomId: string, roundNumber: number) => string;
+    readonly privateRoomConfidentialRoot: (roomId: string) => string;
+    readonly privateRoomConfidential: (roomId: string, roundNumber: number) => string;
 };

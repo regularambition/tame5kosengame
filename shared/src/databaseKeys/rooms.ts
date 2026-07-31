@@ -1,6 +1,8 @@
 import {ROOT_KEYS} from "./root.js";
 
 export const GENERAL_ROOM_KEYS = {
+  PUBLIC: "public",
+  CONFIDENTIAL: "confidential",
   CREATED_AT: "createdAt",
   RULES: "rules",
   MATCH_POINT: "matchPoint",
@@ -48,31 +50,37 @@ export const PRIVATE_ROOM_JOIN_CODE_KEYS = {
 export const DATABASE_PATHS_FOR_ROOMS = {
   privateRoomsRoot: () => ROOT_KEYS.PRIVATE_ROOMS,
 
-  privateRoom: (roomId: string) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}`,
+  privateRoomContainer: (roomId: string) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}`,
+
+  privateRoom: (roomId: string) =>
+    `${DATABASE_PATHS_FOR_ROOMS.privateRoomContainer(roomId)}/${GENERAL_ROOM_KEYS.PUBLIC}`,
 
   privateRoomState: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.STATE}`,
+    `${DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)}/${GENERAL_ROOM_KEYS.STATE}`,
 
   privateRoomGuestName: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
+    `${DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.NAME}`,
 
   guestScore: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
+    `${isPrivateMatch ? DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId) : DATABASE_PATHS_FOR_ROOMS.randomRoom(roomId)}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SCORE}`,
 
   guestMana: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.MANA}`,
+    `${isPrivateMatch ? DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId) : DATABASE_PATHS_FOR_ROOMS.randomRoom(roomId)}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.MANA}`,
 
   hostScore: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
+    `${isPrivateMatch ? DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId) : DATABASE_PATHS_FOR_ROOMS.randomRoom(roomId)}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SCORE}`,
 
   hostMana: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.MANA}`,
+    `${isPrivateMatch ? DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId) : DATABASE_PATHS_FOR_ROOMS.randomRoom(roomId)}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.MANA}`,
 
   privateRoomSpectator: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.SPECTATORS}`,
+    `${DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)}/${PRIVATE_ROOM_KEYS.SPECTATORS}`,
+
+  randomRoom: (roomId: string) =>
+    `${ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.PUBLIC}`,
 
   game: (roomId: string, isPrivateMatch: boolean = false) =>
-    `${isPrivateMatch ? ROOT_KEYS.PRIVATE_ROOMS : ROOT_KEYS.RANDOM_ROOMS}/${roomId}/${GENERAL_ROOM_KEYS.GAME}`,
+    `${isPrivateMatch ? DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId) : DATABASE_PATHS_FOR_ROOMS.randomRoom(roomId)}/${GENERAL_ROOM_KEYS.GAME}`,
 
   currentRoundNumber: (roomId: string, isPrivateMatch: boolean = false) =>
     `${DATABASE_PATHS_FOR_ROOMS.game(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.ROUND_NUMBER}`,
@@ -108,7 +116,7 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
 
   guestIsKickedAt: (roomId: string) =>
-    `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT}`,
+    `${DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)}/${PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT}`,
 
   privateRoomJoinCode: (joinCodeHash: string) =>
     `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
@@ -116,8 +124,9 @@ export const DATABASE_PATHS_FOR_ROOMS = {
   privateRoomJoinCodeRoomId: (joinCodeHash: string) =>
     `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}/${PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID}`,
 
-  privateRoomHiddenHandRoot: (roomId: string) => `${ROOT_KEYS.PRIVATE_ROOM_HIDDEN_HAND}/${roomId}`,
+  privateRoomConfidentialRoot: (roomId: string) =>
+    `${DATABASE_PATHS_FOR_ROOMS.privateRoomContainer(roomId)}/${GENERAL_ROOM_KEYS.CONFIDENTIAL}`,
 
-  privateRoomHiddenHand: (roomId: string, roundNumber: number) =>
-    `${ROOT_KEYS.PRIVATE_ROOM_HIDDEN_HAND}/${roomId}/${roundNumber}`,
+  privateRoomConfidential: (roomId: string, roundNumber: number) =>
+    `${DATABASE_PATHS_FOR_ROOMS.privateRoomConfidentialRoot(roomId)}/${roundNumber}`,
 } as const;

@@ -262,11 +262,29 @@ export const submitHand = onCall<SubmitHandRequest>(
       throw new HttpsError("failed-precondition", "Hand cannot be submitted now.");
     }
 
-    const submissionRef = db.ref(
-      DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHand(roomId, roundNumber),
-    );
-    const submissionResult = await submissionRef.transaction((submission) => {
-      submission ??= {};
+    const roomContainerRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoomContainer(roomId));
+    const submissionResult = await roomContainerRef.transaction((roomContainer) => {
+      if (roomContainer == null) {
+        return roomContainer;
+      }
+
+      const currentRoom = roomContainer[GENERAL_ROOM_KEYS.PUBLIC];
+      const currentGame = currentRoom?.[GENERAL_ROOM_KEYS.GAME];
+      const currentHostUid = currentRoom?.[GENERAL_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.UID];
+      const currentGuestUid = currentRoom?.[GENERAL_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.UID];
+      if (
+        currentRoom?.[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING ||
+        currentGame?.[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
+        currentGame?.[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber ||
+        (uid !== currentHostUid && uid !== currentGuestUid)
+      ) {
+        return;
+      }
+
+      roomContainer[GENERAL_ROOM_KEYS.CONFIDENTIAL] ??= {};
+      const confidential = roomContainer[GENERAL_ROOM_KEYS.CONFIDENTIAL];
+      confidential[roundNumber] ??= {};
+      const submission = confidential[roundNumber];
       submission[GENERAL_ROOM_KEYS.HANDS_OF] ??= {};
       submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS] ??= {};
 
@@ -274,7 +292,7 @@ export const submitHand = onCall<SubmitHandRequest>(
       if (submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS][uid] === true) {
         if (savedHand === hand) {
           // 同一ラウンドで既に提出済みなら冪等に成功させる
-          return submission;
+          return roomContainer;
         } else {
           // 再試行時に手の書き換えをしようとしている場合は失敗
           return;
@@ -284,10 +302,12 @@ export const submitHand = onCall<SubmitHandRequest>(
       submission[GENERAL_ROOM_KEYS.HANDS_OF][uid] = hand;
       submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS][uid] = true;
 
-      return submission;
+      return roomContainer;
     });
 
-    const finalSubmission = submissionResult.snapshot.val();
+    const finalRoomContainer = submissionResult.snapshot.val();
+    const finalSubmission =
+      finalRoomContainer?.[GENERAL_ROOM_KEYS.CONFIDENTIAL]?.[roundNumber] ?? {};
     const submittedPlayers = finalSubmission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS] ?? {};
     const handsOf = finalSubmission[GENERAL_ROOM_KEYS.HANDS_OF] ?? {};
     if (!submissionResult.committed || submittedPlayers[uid] !== true || handsOf[uid] !== hand) {

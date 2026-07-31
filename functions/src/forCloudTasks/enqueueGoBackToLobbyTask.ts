@@ -44,7 +44,7 @@ async function enqueueGoBackToPrivateLobby(roomId: string, backToLobbyAt: number
 
 export const enqueueGoBackToLobbyTask = onValueWritten(
   {
-    ref: "/privateRooms/{roomId}/game/" + "backToLobbyAt",
+    ref: "/privateRooms/{roomId}/public/game/" + "backToLobbyAt",
     region: BACKEND_REGION,
     retry: true,
   },

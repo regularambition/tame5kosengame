@@ -47,7 +47,7 @@ export async function enqueueRemoveKickedGuestData(
 
 export const enqueueRemoveKickedGuestDataTask = onValueWritten(
   {
-    ref: "/privateRooms/{roomId}/guestIsKickedAt/",
+    ref: "/privateRooms/{roomId}/public/guestIsKickedAt/",
     region: BACKEND_REGION,
     retry: true,
   },
