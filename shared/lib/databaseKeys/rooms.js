@@ -35,6 +35,7 @@ export const PRIVATE_ROOM_KEYS = {
     JOIN_CODE_HASH: "joinCodeHash",
     READY: "ready",
     BACK_TO_LOBBY_AT: "backToLobbyAt",
+    GUEST_IS_KICKED_AT: "guestIsKickedAt",
 };
 export const PRIVATE_ROOM_JOIN_CODE_KEYS = {
     ROOM_ID: "roomId",
@@ -62,6 +63,7 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     resolvedHostHand: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.HOST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,
     resolvedGuestHand: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,
     nextPhaseAt: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
+    guestIsKickedAt: (roomId) => `${ROOT_KEYS.PRIVATE_ROOMS}/${roomId}/${PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT}`,
     privateRoomJoinCode: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
     privateRoomJoinCodeRoomId: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}/${PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID}`,
     privateRoomHiddenHandRoot: (roomId) => `${ROOT_KEYS.PRIVATE_ROOM_HIDDEN_HAND}/${roomId}`,

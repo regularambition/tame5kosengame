@@ -3,33 +3,36 @@ import {BACKEND_REGION} from "../config";
 import {db} from "../firebaseAdmin";
 import {
   DATABASE_PATHS_FOR_ROOMS,
-  GAME_PHASES,
   GENERAL_ROOM_KEYS,
   PRIVATE_ROOM_KEYS,
+  ROOM_STATES,
 } from "@tame5kosengame/shared";
-import {GoBackToPrivateLobbyTask} from "../contracts";
+import {RemoveKickedGuestDataTask} from "../contracts";
 import {buildTaskPath, isRetryWindowExpired, isTaskAlreadyAdded, makeTaskId} from "./helpers";
 import {getFunctions} from "firebase-admin/functions";
 import {logger} from "firebase-functions";
 
-function makeGoBackToPrivateLobbyTaskId(roomId: string, nextPhaseAt: number): string {
-  return makeTaskId("go-back-to-private-lobby", [roomId, nextPhaseAt]);
+function makeRemoveKickedGuestDataTaskId(roomId: string, guestIsKickedAt: number): string {
+  return makeTaskId("remove-kicked-guest-data", [roomId, guestIsKickedAt]);
 }
 
-async function enqueueGoBackToPrivateLobby(roomId: string, backToLobbyAt: number): Promise<void> {
-  const queue = getFunctions().taskQueue(buildTaskPath("goBackToPrivateLobby"));
+export async function enqueueRemoveKickedGuestData(
+  roomId: string,
+  guestIsKickedAt: number,
+): Promise<void> {
+  const queue = getFunctions().taskQueue(buildTaskPath("removeKickedGuestData"));
 
   try {
     await queue.enqueue(
       {
         roomId,
-        backToLobbyAt,
-      } satisfies GoBackToPrivateLobbyTask,
+        guestIsKickedAt,
+      } satisfies RemoveKickedGuestDataTask,
       {
-        scheduleTime: new Date(backToLobbyAt),
+        scheduleTime: new Date(guestIsKickedAt),
 
         // 同じ部屋・同じ開始時刻の重複タスクを防ぐ
-        id: makeGoBackToPrivateLobbyTaskId(roomId, backToLobbyAt),
+        id: makeRemoveKickedGuestDataTaskId(roomId, guestIsKickedAt),
       },
     );
   } catch (error) {
@@ -42,15 +45,15 @@ async function enqueueGoBackToPrivateLobby(roomId: string, backToLobbyAt: number
   }
 }
 
-export const enqueueGoBackToLobbyTask = onValueWritten(
+export const enqueueRemoveKickedGuestDataTask = onValueWritten(
   {
-    ref: "/privateRooms/{roomId}/game/" + "backToLobbyAt",
+    ref: "/privateRooms/{roomId}/guestIsKickedAt/",
     region: BACKEND_REGION,
     retry: true,
   },
   async (event) => {
     if (isRetryWindowExpired(event.time)) {
-      logger.error("Go-back-to-lobby enqueue retry window expired.", {
+      logger.error("Remove-kicked-guest-data enqueue retry window expired.", {
         roomId: event.params.roomId,
         eventId: event.id,
         eventTime: event.time,
@@ -63,41 +66,34 @@ export const enqueueGoBackToLobbyTask = onValueWritten(
         return;
       }
 
-      const backToLobbyAt = event.data.after.val();
+      const guestIsKickedAt = event.data.after.val();
 
-      if (typeof backToLobbyAt !== "number") {
+      if (typeof guestIsKickedAt !== "number") {
         return;
       }
 
       const roomId = event.params.roomId;
-
-      // 現在DBに保存されている値と再照合
-      // phase === finishedも確認
-
       const roomSnapshot = await db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)).get();
-
       if (!roomSnapshot.exists()) {
         return;
       }
 
-      const game = roomSnapshot.child(GENERAL_ROOM_KEYS.GAME);
-
-      const phase = game.child(GENERAL_ROOM_KEYS.PHASE).val();
-      if (phase !== GAME_PHASES.FINISHED) {
-        return;
-      }
-
-      const currentBackToLobbyAt = game.child(PRIVATE_ROOM_KEYS.BACK_TO_LOBBY_AT).val();
-
+      const currentGuestIsKickedAt = roomSnapshot.child(PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT).val();
+      const currentGuest = roomSnapshot.child(GENERAL_ROOM_KEYS.GUEST).val();
+      const currentState = roomSnapshot.child(GENERAL_ROOM_KEYS.STATE).val();
       // イベント発生後に状態が変わっていたら古いイベント
-      if (currentBackToLobbyAt !== backToLobbyAt) {
+      if (
+        currentGuestIsKickedAt !== guestIsKickedAt ||
+        currentGuest == null ||
+        currentState !== ROOM_STATES.PREPARING
+      ) {
         return;
       }
 
-      await enqueueGoBackToPrivateLobby(roomId, backToLobbyAt);
+      await enqueueRemoveKickedGuestData(roomId, guestIsKickedAt);
     } catch (error) {
       if (isRetryWindowExpired(event.time)) {
-        logger.error("Go-back-to-lobby enqueue failed until retry window expired.", {
+        logger.error("Remove-kicked-guest-data enqueue failed until retry window expired.", {
           roomId: event.params.roomId,
           eventId: event.id,
           eventTime: event.time,

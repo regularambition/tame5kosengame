@@ -8,3 +8,4 @@ export * from "./markAsReady.js";
 export * from "./initializeAfterIntro.js";
 export * from "./submitHand.js";
 export * from "./resign.js";
+export * from "./kickGuest.js";

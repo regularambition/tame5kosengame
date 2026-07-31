@@ -32,7 +32,9 @@ import {
   leavePrivateRoom,
   deletePrivateRoom,
   markAsReady,
-} from "./roomManaging/privateRoom";
+  kickGuest,
+  removeKickedGuestData,
+} from "./roomManaging";
 import {
   submitHand,
   finishIntroPhase,
@@ -40,7 +42,11 @@ import {
   goBackToPrivateLobby,
   resign,
 } from "./inBattle";
-import {enqueuePhaseTransitionTask, enqueueGoBackToLobbyTask} from "./forCloudTasks";
+import {
+  enqueuePhaseTransitionTask,
+  enqueueGoBackToLobbyTask,
+  enqueueRemoveKickedGuestDataTask,
+} from "./forCloudTasks";
 
 export {
   ensureUserProfile,
@@ -55,8 +61,11 @@ export {
   finishResolvedPhase,
   goBackToPrivateLobby,
   resign,
+  kickGuest,
+  removeKickedGuestData,
 
   // DBイベントからCloud Tasksを登録するFunction
   enqueuePhaseTransitionTask,
   enqueueGoBackToLobbyTask,
+  enqueueRemoveKickedGuestDataTask,
 };

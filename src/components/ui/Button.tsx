@@ -24,6 +24,7 @@ export function Button({
   colorVariant = BUTTON_COLOR_TYPE.PRIMARY,
   shapeVariant = BUTTON_SHAPE_TYPE.LANDSCAPE,
   className = "",
+  type = "button",
   ...props
 }: ButtonProps) {
   return (

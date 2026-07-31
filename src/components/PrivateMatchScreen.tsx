@@ -11,7 +11,7 @@ import {createPrivateRoom} from "../api/createPrivateRoom";
 import {enterPrivateRoom} from "../api/enterPrivateRoom";
 import {leavePrivateRoom} from "../api/leavePrivateRoom";
 import {deletePrivateRoom} from "../api/deletePrivateRoom";
-import {watchPrivateRoomState, watchGuestName} from "../api/watchPrivateRoom";
+import {watchPrivateRoomState, watchGuestName, watchGuestIsKickedAt} from "../api/watchPrivateRoom";
 import {markAsReady} from "../api/markAsReady";
 
 import {
@@ -26,6 +26,7 @@ import {
 
 import {isHost, isPlayerRole, ROLES_IN_BATTLE, RolesInBattleId} from "../constants/rolesInBattle";
 import {MatchInfo} from "../types/MatchInfo";
+import {kickGuest} from "../api/kickGuest";
 
 type PrivateMatchScreenProps = {
   matchInfo: MatchInfo;
@@ -40,6 +41,7 @@ const STATES = {
   I_AM_HOST: 2,
   ENTERING_JOIN_CODE: 3,
   I_AM_GUEST_OR_SPECTATOR: 4,
+  AFTER_KICK_OR_DISBAND: 5,
 } as const;
 
 type StateId = (typeof STATES)[keyof typeof STATES];
@@ -61,12 +63,8 @@ function MakeOrEnterDiv({onClickMake, onClickEnter}: MakeOrEnterDivProps) {
   return (
     <Div>
       <ButtonRow>
-        <Button onClick={onClickMake} type="button">
-          部屋を建てる
-        </Button>
-        <Button onClick={onClickEnter} type="button">
-          部屋に入る
-        </Button>
+        <Button onClick={onClickMake}>部屋を建てる</Button>
+        <Button onClick={onClickEnter}>部屋に入る</Button>
       </ButtonRow>
     </Div>
   );
@@ -116,7 +114,7 @@ function MatchRulesSettingDiv({
         value={thinkingTime}
         disabled={isCreatingRoom}
       ></TextInput>
-      <Button onClick={onRoomCreating} type="button" disabled={isCreatingRoom}>
+      <Button onClick={onRoomCreating} disabled={isCreatingRoom}>
         この条件で建てる
       </Button>
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
@@ -125,23 +123,27 @@ function MatchRulesSettingDiv({
 }
 
 type WaitingForGuestDivProps = {
+  roomId: string;
   joinCode: string;
   matchPoint: string;
   thinkingTime: string;
-  opponentName: string;
+  guestName: string;
   onFinishPreparing: () => void | Promise<void>;
   isReadyToFight: boolean;
   errorMessage: string;
+  guestIsKickedAt: number | null;
 };
 
 function WaitingForGuestDiv({
+  roomId,
   joinCode,
   matchPoint,
   thinkingTime,
-  opponentName,
+  guestName,
   onFinishPreparing,
   isReadyToFight,
   errorMessage,
+  guestIsKickedAt,
 }: WaitingForGuestDivProps) {
   const [copyAnnotation, setCopyAnnotation] = useState<string>("");
 
@@ -157,6 +159,22 @@ function WaitingForGuestDiv({
     setTimeout(() => setCopyAnnotation(""), 2000); // 2秒後に戻す
   };
 
+  const [isKickProcessing, setIsKickProcessing] = useState<boolean>(false);
+
+  const handleKick = async () => {
+    if (isKickProcessing) {
+      return;
+    }
+
+    setIsKickProcessing(true);
+    try {
+      await kickGuest(roomId);
+    } catch (e) {
+      console.log(e);
+    }
+    setIsKickProcessing(false);
+  };
+
   return (
     <Div>
       <p>
@@ -164,7 +182,7 @@ function WaitingForGuestDiv({
         <br />
         <span>{joinCode}</span>
       </p>
-      <Button onClick={handleCopy} type="button" disabled={copyAnnotation.length > 0}>
+      <Button onClick={handleCopy} disabled={copyAnnotation.length > 0}>
         参加コードをコピー
       </Button>
       {copyAnnotation.length > 0 && <AnnotationText>{copyAnnotation}</AnnotationText>}
@@ -173,16 +191,22 @@ function WaitingForGuestDiv({
         <br />
         {matchPoint}点先取で勝利、選択は{thinkingTime}秒以内
       </p>
-      {opponentName.length === 0 && <AnnotationText>まだ相手がいません</AnnotationText>}
-      {opponentName.length > 0 && (
-        <div>
-          <p>相手の名前：{opponentName}</p>
-          <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+      {guestName.length === 0 && <AnnotationText>まだ相手がいません</AnnotationText>}
+      {guestName.length > 0 && <p>相手の名前：{guestName}</p>}
+      {guestName.length > 0 && (
+        <ButtonRow>
+          <Button onClick={onFinishPreparing} disabled={isReadyToFight}>
             準備完了
           </Button>
-        </div>
+          <Button onClick={handleKick} disabled={isKickProcessing}>
+            このゲストを追い出す
+          </Button>
+        </ButtonRow>
       )}
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
+      {typeof guestIsKickedAt === "number" && (
+        <AnnotationText>ゲスト追い出し処理中・・・</AnnotationText>
+      )}
     </Div>
   );
 }
@@ -221,7 +245,7 @@ function EnteringJoinCodeDiv({
       </div>
       <p>入る部屋の参加コードを入力（8桁の半角数字）</p>
       <TextInput onChange={onChangeJoinCode} disabled={isEntering}></TextInput>
-      <Button onClick={onClickEnter} type="button" disabled={isEntering}>
+      <Button onClick={onClickEnter} disabled={isEntering}>
         この部屋に入る
       </Button>
       {errorMessage && <AnnotationText>{errorMessage}</AnnotationText>}
@@ -238,6 +262,8 @@ type WaitingForHostOperationDivProps = {
   onFinishPreparing: () => void | Promise<void>;
   isReadyToFight: boolean;
   errorMessage: string;
+  guestIsKickedAt: number | null;
+  onBeingKickedAsGuest: () => void;
 };
 
 function WaitingForHostOperationDiv({
@@ -249,7 +275,18 @@ function WaitingForHostOperationDiv({
   onFinishPreparing,
   isReadyToFight,
   errorMessage,
+  guestIsKickedAt,
+  onBeingKickedAsGuest,
 }: WaitingForHostOperationDivProps) {
+  if (isPlayer) {
+    // 追い出しの対象となり得るのはゲストのみ
+    useEffect(() => {
+      if (typeof guestIsKickedAt === "number") {
+        onBeingKickedAsGuest();
+      }
+    }, [guestIsKickedAt]);
+  }
+
   return (
     <Div>
       <p>
@@ -259,7 +296,7 @@ function WaitingForHostOperationDiv({
       </p>
       <p>あなたの役割：{isPlayer ? "対戦相手" : "観戦者"}</p>
       {isPlayer && (
-        <Button onClick={onFinishPreparing} type="button" disabled={isReadyToFight}>
+        <Button onClick={onFinishPreparing} disabled={isReadyToFight}>
           準備完了
         </Button>
       )}
@@ -271,6 +308,37 @@ function WaitingForHostOperationDiv({
           試合開始までお待ち下さい
         </p>
       )}
+    </Div>
+  );
+}
+
+type AfterKickOrDisbandDivProps = {
+  guestIsKickedAt: number | null;
+  onBackToTop: () => void;
+};
+function AfterKickOrDisbandDiv({guestIsKickedAt, onBackToTop}: AfterKickOrDisbandDivProps) {
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
+  const handleBackToTop = () => {
+    if (isProcessing) {
+      return;
+    }
+
+    setIsProcessing(true);
+    onBackToTop();
+    setIsProcessing(false);
+  };
+
+  return (
+    <Div>
+      <AnnotationText>
+        {typeof guestIsKickedAt === "number"
+          ? "ホストにより追い出されました"
+          : "部屋が解散されました"}
+      </AnnotationText>
+      <Button onClick={handleBackToTop} disabled={isProcessing}>
+        トップへ戻る
+      </Button>
     </Div>
   );
 }
@@ -304,6 +372,7 @@ export function PrivateMatchScreen({
   const [hostName, setHostName] = useState<string>(matchInfo.hostName);
   const [guestName, setGuestName] = useState<string>(matchInfo.guestName);
   const [isReadyToFight, setIsReadyToFight] = useState<boolean>(false);
+  const [guestIsKickedAt, setGuestIsKickedAt] = useState<number | null>(null);
 
   function buildMatchInfo(): MatchInfo {
     let role: RolesInBattleId = ROLES_IN_BATTLE.HOST_OF_PRIVATE_MATCH;
@@ -328,13 +397,7 @@ export function PrivateMatchScreen({
   useEffect(() => {
     const watchPrivateRoomStateArg = (st: RoomState) => {
       if (st === ROOM_STATES.CLOSED) {
-        alert("部屋が削除されました");
-        setRoomId("");
-        setJoinCode("");
-        setHostName("");
-        setGuestName("");
-        setIsReadyToFight(false);
-        setState(STATES.MAKE_OR_ENTER);
+        setState(STATES.AFTER_KICK_OR_DISBAND);
       }
     };
 
@@ -380,8 +443,20 @@ export function PrivateMatchScreen({
       }
     };
 
-    const unsubscribe = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
-    return unsubscribe;
+    const unsubscribeRoomState = watchPrivateRoomState(roomId, watchPrivateRoomStateArg);
+
+    // 追い出しの対象となり得るのはゲストのみ
+    const unsubscribeGuestIsKickedAt =
+      state === STATES.I_AM_GUEST_OR_SPECTATOR && !isPlayer
+        ? null
+        : watchGuestIsKickedAt(roomId, setGuestIsKickedAt);
+
+    return () => {
+      unsubscribeRoomState();
+      if (unsubscribeGuestIsKickedAt != null) {
+        unsubscribeGuestIsKickedAt();
+      }
+    };
   }, [roomId, state, isPlayer, userName, hostName, guestName, matchPoint, thinkingTime]);
 
   const onClickBackArrowButton = async () => {
@@ -529,10 +604,12 @@ export function PrivateMatchScreen({
   return (
     <main className="screen not-playing-text-general">
       <ScreenBanner s={SCREEN_NAMES.PRIVATE_MATCH} />
-      <BackArrowButton
-        onClick={onClickBackArrowButton}
-        disabled={isBackProcessing || isCreatingRoom || isEntering || isReadyToFight}
-      />
+      {state !== STATES.AFTER_KICK_OR_DISBAND && (
+        <BackArrowButton
+          onClick={onClickBackArrowButton}
+          disabled={isBackProcessing || isCreatingRoom || isEntering}
+        />
+      )}
       {state === STATES.MAKE_OR_ENTER && (
         <MakeOrEnterDiv
           onClickMake={() => setState(STATES.MATCH_RULES_SETTING)}
@@ -552,13 +629,15 @@ export function PrivateMatchScreen({
       )}
       {state === STATES.I_AM_HOST && (
         <WaitingForGuestDiv
+          roomId={roomId}
           joinCode={joinCode}
           matchPoint={matchPoint}
           thinkingTime={thinkingTime}
-          opponentName={guestName}
+          guestName={guestName}
           onFinishPreparing={handleFinishPreparing}
           isReadyToFight={isReadyToFight}
           errorMessage={errorMessage}
+          guestIsKickedAt={guestIsKickedAt}
         />
       )}
       {state === STATES.ENTERING_JOIN_CODE && (
@@ -570,7 +649,7 @@ export function PrivateMatchScreen({
           errorMessage={errorMessage}
           onChangeLeftRadio={() => setIsPlayer(true)}
           onChangeRightRadio={() => setIsPlayer(false)}
-        ></EnteringJoinCodeDiv>
+        />
       )}
       {state === STATES.I_AM_GUEST_OR_SPECTATOR && (
         <WaitingForHostOperationDiv
@@ -582,7 +661,14 @@ export function PrivateMatchScreen({
           onFinishPreparing={handleFinishPreparing}
           isReadyToFight={isReadyToFight}
           errorMessage={errorMessage}
-        ></WaitingForHostOperationDiv>
+          guestIsKickedAt={guestIsKickedAt}
+          onBeingKickedAsGuest={() => {
+            setState(STATES.AFTER_KICK_OR_DISBAND);
+          }}
+        />
+      )}
+      {state === STATES.AFTER_KICK_OR_DISBAND && (
+        <AfterKickOrDisbandDiv guestIsKickedAt={guestIsKickedAt} onBackToTop={onBackToTop} />
       )}
     </main>
   );

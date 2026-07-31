@@ -34,6 +34,7 @@ export declare const PRIVATE_ROOM_KEYS: {
     readonly JOIN_CODE_HASH: "joinCodeHash";
     readonly READY: "ready";
     readonly BACK_TO_LOBBY_AT: "backToLobbyAt";
+    readonly GUEST_IS_KICKED_AT: "guestIsKickedAt";
 };
 export declare const PRIVATE_ROOM_JOIN_CODE_KEYS: {
     readonly ROOM_ID: "roomId";
@@ -61,6 +62,7 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly resolvedHostHand: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly resolvedGuestHand: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly nextPhaseAt: (roomId: string, isPrivateMatch?: boolean) => string;
+    readonly guestIsKickedAt: (roomId: string) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
     readonly privateRoomHiddenHandRoot: (roomId: string) => string;
