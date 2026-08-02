@@ -63,10 +63,12 @@ export const goBackToPrivateLobby = onTaskDispatched<GoBackToPrivateLobbyTask>(
     }
 
     if (finalRoom[GENERAL_ROOM_KEYS.STATE] === ROOM_STATES.PREPARING) {
-      const hiddenHandRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoomHiddenHandRoot(roomId));
-      const hiddenHandSnapshot = await hiddenHandRef.get();
-      if (hiddenHandSnapshot.exists()) {
-        await hiddenHandRef.remove();
+      const confidentialRef = db.ref(
+        DATABASE_PATHS_FOR_ROOMS.privateRoomConfidentialRoot(roomId),
+      );
+      const confidentialSnapshot = await confidentialRef.get();
+      if (confidentialSnapshot.exists()) {
+        await confidentialRef.remove();
       }
     }
   },
