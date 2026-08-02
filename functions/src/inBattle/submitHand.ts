@@ -122,7 +122,7 @@ export const submitHand = onCall<SubmitHandRequest>(
         }
 
         if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
-          return;
+          return room;
         }
 
         const game = room[GENERAL_ROOM_KEYS.GAME];
@@ -150,7 +150,7 @@ export const submitHand = onCall<SubmitHandRequest>(
           game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
           game[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
         ) {
-          return;
+          return room;
         }
 
         game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.FINISHED;
@@ -244,24 +244,6 @@ export const submitHand = onCall<SubmitHandRequest>(
       return {hasSucceeded: true};
     }
 
-    // 手の提出実行前に条件確認
-    const preSubmissionState = roomSnapshot.child(GENERAL_ROOM_KEYS.STATE).val();
-    const preSubmissionPhase = roomSnapshot
-      .child(GENERAL_ROOM_KEYS.GAME)
-      .child(GENERAL_ROOM_KEYS.PHASE)
-      .val();
-    const currentRoundNumber = roomSnapshot
-      .child(GENERAL_ROOM_KEYS.GAME)
-      .child(GENERAL_ROOM_KEYS.ROUND_NUMBER)
-      .val();
-    if (
-      preSubmissionState !== ROOM_STATES.PLAYING ||
-      preSubmissionPhase !== GAME_PHASES.SELECTING ||
-      currentRoundNumber !== roundNumber
-    ) {
-      throw new HttpsError("failed-precondition", "Hand cannot be submitted now.");
-    }
-
     const roomContainerRef = db.ref(DATABASE_PATHS_FOR_ROOMS.privateRoomContainer(roomId));
     const submissionResult = await roomContainerRef.transaction((roomContainer) => {
       if (roomContainer == null) {
@@ -270,6 +252,17 @@ export const submitHand = onCall<SubmitHandRequest>(
 
       const currentRoom = roomContainer[GENERAL_ROOM_KEYS.PUBLIC];
       const currentGame = currentRoom?.[GENERAL_ROOM_KEYS.GAME];
+      if (
+        isCheaterDetectionResult(currentGame[GENERAL_ROOM_KEYS.CHEATER]) ||
+        isResignerDetectionResult(currentGame[GENERAL_ROOM_KEYS.RESIGNER])
+      ) {
+        // 結果を冪等にする
+        // 割り込んできたチート対策処理や降参によって
+        // 既に最終的な勝者が決定している場合
+        // 手の提出による書き込みは一切行われない
+        return roomContainer;
+      }
+
       const currentHostUid = currentRoom?.[GENERAL_ROOM_KEYS.HOST]?.[GENERAL_ROOM_KEYS.UID];
       const currentGuestUid = currentRoom?.[GENERAL_ROOM_KEYS.GUEST]?.[GENERAL_ROOM_KEYS.UID];
       if (
@@ -278,7 +271,7 @@ export const submitHand = onCall<SubmitHandRequest>(
         currentGame?.[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber ||
         (uid !== currentHostUid && uid !== currentGuestUid)
       ) {
-        return;
+        return roomContainer;
       }
 
       roomContainer[GENERAL_ROOM_KEYS.CONFIDENTIAL] ??= {};
@@ -288,86 +281,35 @@ export const submitHand = onCall<SubmitHandRequest>(
       submission[GENERAL_ROOM_KEYS.HANDS_OF] ??= {};
       submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS] ??= {};
 
-      const savedHand = submission[GENERAL_ROOM_KEYS.HANDS_OF][uid];
       if (submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS][uid] === true) {
-        if (savedHand === hand) {
-          // 同一ラウンドで既に提出済みなら冪等に成功させる
-          return roomContainer;
-        } else {
-          // 再試行時に手の書き換えをしようとしている場合は失敗
-          return;
-        }
+        // 同一ラウンドで既に提出済みなら冪等に成功させる
+        // ただし手の書き換えをしようとしている場合は失敗させる
+        return roomContainer;
       }
 
       submission[GENERAL_ROOM_KEYS.HANDS_OF][uid] = hand;
       submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS][uid] = true;
 
-      return roomContainer;
-    });
+      const handsOf = submission[GENERAL_ROOM_KEYS.HANDS_OF];
+      const submittedPlayers = submission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS];
 
-    const finalRoomContainer = submissionResult.snapshot.val();
-    const finalSubmission =
-      finalRoomContainer?.[GENERAL_ROOM_KEYS.CONFIDENTIAL]?.[roundNumber] ?? {};
-    const submittedPlayers = finalSubmission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS] ?? {};
-    const handsOf = finalSubmission[GENERAL_ROOM_KEYS.HANDS_OF] ?? {};
-    if (!submissionResult.committed || submittedPlayers[uid] !== true || handsOf[uid] !== hand) {
-      throw new HttpsError("failed-precondition", "Hand submission failed.");
-    }
-
-    const bothSubmitted = submittedPlayers[hostUid] === true && submittedPlayers[guestUid] === true;
-
-    if (!bothSubmitted) {
-      return {hasSucceeded: true};
-    }
-
-    const winnerOfRound = findWinnerOfRound(handsOf[hostUid], handsOf[guestUid]);
-    const winnerUid =
-      winnerOfRound === WINNER_DETECTION_RESULT.HOST_WON
-        ? hostUid
-        : winnerOfRound === WINNER_DETECTION_RESULT.GUEST_WON
-          ? guestUid
-          : "";
-    const result = await roomRef.transaction((room) => {
-      if (room == null || room[GENERAL_ROOM_KEYS.STATE] == null) {
-        return room;
+      const bothSubmitted =
+        submittedPlayers[hostUid] === true && submittedPlayers[guestUid] === true;
+      if (!bothSubmitted) {
+        // 二人の提出がまだ揃っていない場合はこれ以上更新せずすぐに正常終了
+        return roomContainer;
       }
 
-      if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING) {
-        return;
-      }
+      const winnerOfRound = findWinnerOfRound(handsOf[hostUid], handsOf[guestUid]);
+      const winnerUid =
+        winnerOfRound === WINNER_DETECTION_RESULT.HOST_WON
+          ? hostUid
+          : winnerOfRound === WINNER_DETECTION_RESULT.GUEST_WON
+            ? guestUid
+            : "";
 
-      const game = room[GENERAL_ROOM_KEYS.GAME];
-      if (
-        game == null ||
-        game[GENERAL_ROOM_KEYS.PHASE] == null ||
-        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] == null
-      ) {
-        return room;
-      }
-
-      if (
-        game[GENERAL_ROOM_KEYS.PHASE] === GAME_PHASES.RESOLVED ||
-        isCheaterDetectionResult(game[GENERAL_ROOM_KEYS.CHEATER]) ||
-        isResignerDetectionResult(game[GENERAL_ROOM_KEYS.RESIGNER])
-      ) {
-        // 結果を冪等にする
-        // 割り込んできたチート対策処理や降参によって
-        // 既に最終的な勝者が決定している場合
-        // 手の提出による書き込みは一切行われない
-        return room;
-      }
-
-      if (
-        game[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING ||
-        game[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber
-      ) {
-        return;
-      }
-
-      game[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.RESOLVED;
-
-      game[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ??= {};
-      const resolvedRound = game[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
+      currentGame[GENERAL_ROOM_KEYS.PHASE] = GAME_PHASES.RESOLVED;
+      const resolvedRound = currentGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND];
       resolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] = roundNumber;
       resolvedRound[GENERAL_ROOM_KEYS.WINNER_OF_ROUND] = winnerOfRound;
       resolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] = ServerValue.TIMESTAMP;
@@ -398,29 +340,16 @@ export const submitHand = onCall<SubmitHandRequest>(
         resRoundGuest[GENERAL_ROOM_KEYS.MANA_GAIN] = findManaGain(handsOf[guestUid]);
       }
 
-      return room;
+      return roomContainer;
     });
-    if (!result.committed) {
-      throw new HttpsError("failed-precondition", "Phase updating failed.");
-    }
-    if (!result.snapshot.exists()) {
-      throw new HttpsError("failed-precondition", "Private room not found. (after transaction)");
+
+    if (!submissionResult.snapshot.exists()) {
+      throw new HttpsError("failed-precondition", "Database is broken.");
     }
 
-    const finalRoom = result.snapshot.val();
-    const finalState = finalRoom[GENERAL_ROOM_KEYS.STATE];
-    const finalGame = finalRoom[GENERAL_ROOM_KEYS.GAME];
-    const finalHost = finalRoom[GENERAL_ROOM_KEYS.HOST];
-    const finalGuest = finalRoom[GENERAL_ROOM_KEYS.GUEST];
-    if (
-      !finalHost ||
-      !finalGuest ||
-      !finalGame ||
-      !finalGame[GENERAL_ROOM_KEYS.PHASE] ||
-      finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] == null
-    ) {
-      throw new HttpsError("failed-precondition", "Private room data is incomplete.");
-    }
+    const finalRoomContainer = submissionResult.snapshot.val();
+    const finalRoom = finalRoomContainer?.[GENERAL_ROOM_KEYS.PUBLIC] ?? {};
+    const finalGame = finalRoom?.[GENERAL_ROOM_KEYS.GAME] ?? {};
     if (
       isCheaterDetectionResult(finalGame[GENERAL_ROOM_KEYS.CHEATER]) ||
       isResignerDetectionResult(finalGame[GENERAL_ROOM_KEYS.RESIGNER])
@@ -428,31 +357,71 @@ export const submitHand = onCall<SubmitHandRequest>(
       // チート対策処理や降参が先に割り込んできている場合はすぐさま終了
       return {hasSucceeded: true};
     }
-    if (finalState !== ROOM_STATES.PLAYING) {
-      throw new HttpsError("failed-precondition", "Private room is not playing.");
+
+    if (
+      finalRoom?.[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PLAYING ||
+      (finalGame?.[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.SELECTING &&
+        finalGame?.[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED) ||
+      finalGame?.[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber ||
+      (uid !== hostUid && uid !== guestUid)
+    ) {
+      throw new HttpsError("failed-precondition", "Hand cannot be submitted now.");
     }
 
-    const finalPlayer =
-      finalHost[GENERAL_ROOM_KEYS.UID] === uid
-        ? finalHost
-        : finalGuest[GENERAL_ROOM_KEYS.UID] === uid
-          ? finalGuest
-          : null;
-    if (finalPlayer === null) {
-      throw new HttpsError("permission-denied", "User is not a player.");
-    }
-    if (finalGame[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber) {
-      throw new HttpsError("failed-precondition", "Request is not latest round.");
-    }
-    if (finalGame[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED) {
-      throw new HttpsError("failed-precondition", "Failed to move to resolved phase.");
+    const finalSubmission =
+      finalRoomContainer?.[GENERAL_ROOM_KEYS.CONFIDENTIAL]?.[roundNumber] ?? {};
+    const finalSubmittedPlayers = finalSubmission[GENERAL_ROOM_KEYS.SUBMITTED_PLAYERS] ?? {};
+    const finalHandsOf = finalSubmission[GENERAL_ROOM_KEYS.HANDS_OF] ?? {};
+    if (
+      !submissionResult.committed ||
+      finalSubmittedPlayers[uid] !== true ||
+      finalHandsOf[uid] !== hand
+    ) {
+      throw new HttpsError("failed-precondition", "Hand submission failed.");
     }
 
-    const nextPhaseAt =
-      finalGame[GENERAL_ROOM_KEYS.RESOLVED_ROUND]?.[GENERAL_ROOM_KEYS.NEXT_PHASE_AT];
+    const finalBothSubmitted =
+      finalSubmittedPlayers[hostUid] === true && finalSubmittedPlayers[guestUid] === true;
+    if (!finalBothSubmitted) {
+      // 二人の提出がまだ揃っていない場合はこれ以上更新せずすぐに正常終了
+      return {hasSucceeded: true};
+    }
 
-    if (typeof nextPhaseAt !== "number") {
-      throw new HttpsError("internal", "Resolved phase deadline is missing.");
+    const finalWinnerOfRound = findWinnerOfRound(finalHandsOf[hostUid], finalHandsOf[guestUid]);
+    const finalWinnerUid =
+      finalWinnerOfRound === WINNER_DETECTION_RESULT.HOST_WON
+        ? hostUid
+        : finalWinnerOfRound === WINNER_DETECTION_RESULT.GUEST_WON
+          ? guestUid
+          : "";
+
+    const finalResolvedRound = finalGame?.[GENERAL_ROOM_KEYS.RESOLVED_ROUND] ?? {};
+    const finalResRoundHost = finalResolvedRound?.[GENERAL_ROOM_KEYS.HOST] ?? {};
+    const finalResRoundGuest = finalResolvedRound?.[GENERAL_ROOM_KEYS.GUEST] ?? {};
+    const finalHostScoreGain = findScoreGain(finalHandsOf[hostUid], finalWinnerUid, hostUid);
+    const finalGuestScoreGain = findScoreGain(finalHandsOf[guestUid], finalWinnerUid, guestUid);
+    if (
+      finalGame[GENERAL_ROOM_KEYS.PHASE] !== GAME_PHASES.RESOLVED ||
+      finalResolvedRound[GENERAL_ROOM_KEYS.ROUND_NUMBER] !== roundNumber ||
+      finalResolvedRound[GENERAL_ROOM_KEYS.WINNER_OF_ROUND] !== finalWinnerOfRound ||
+      typeof finalResolvedRound[GENERAL_ROOM_KEYS.RESOLVED_AT] !== "number" ||
+      typeof finalResolvedRound[GENERAL_ROOM_KEYS.NEXT_PHASE_AT] !== "number" ||
+      finalResRoundHost[GENERAL_ROOM_KEYS.SCORE_GAIN] !== finalHostScoreGain ||
+      finalResRoundGuest[GENERAL_ROOM_KEYS.SCORE_GAIN] !== finalGuestScoreGain
+    ) {
+      throw new HttpsError("failed-precondition", "Failed to record when both submitted.");
+    }
+
+    if (finalWinnerOfRound === WINNER_DETECTION_RESULT.DRAW) {
+      if (
+        finalResRoundHost[GENERAL_ROOM_KEYS.MANA_GAIN] !== findManaGain(finalHandsOf[hostUid]) ||
+        finalResRoundGuest[GENERAL_ROOM_KEYS.MANA_GAIN] !== findManaGain(finalHandsOf[guestUid])
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Failed to record when both submitted(case of draw).",
+        );
+      }
     }
 
     return {hasSucceeded: true};
