@@ -16,7 +16,7 @@ import {
 } from "@tame5kosengame/shared";
 import type {ResignRequest, ResignResponse} from "@tame5kosengame/shared";
 
-import {findBackToLobbyAt} from "./timestampGenerator";
+import {findBackToLobbyAt} from "../forCloudTasks";
 
 export const resign = onCall<ResignRequest>(async (request): Promise<ResignResponse> => {
   if (!request.auth) {

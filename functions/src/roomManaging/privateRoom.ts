@@ -17,6 +17,7 @@ import {
   PRIVATE_ROOM_KEYS,
   GAME_PHASES,
   INITIAL_VALUES_IN_BATTLE,
+  CONNECTION_STATES,
 } from "@tame5kosengame/shared";
 import type {
   CreatePrivateRoomRequest,
@@ -30,7 +31,7 @@ import type {
   MarkAsReadyRequest,
   MarkAsReadyResponse,
 } from "@tame5kosengame/shared";
-import {findNextPhaseAt} from "../inBattle/timestampGenerator";
+import {findNextPhaseAt} from "../forCloudTasks";
 import {ALGORITHM_NAME as ENCRYPTION_ALGORITHM_NAME} from "../config";
 
 const ROOM_ID_SPACE_SIZE = 100_000_000;
@@ -114,6 +115,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
             [GENERAL_ROOM_KEYS.UID]: hostUid,
             [GENERAL_ROOM_KEYS.NAME]: userName,
             [PRIVATE_ROOM_KEYS.READY]: false,
+            [GENERAL_ROOM_KEYS.CONNECTION_STATE]: CONNECTION_STATES.CONNECTED,
           },
           [GENERAL_ROOM_KEYS.CREATED_AT]: ServerValue.TIMESTAMP,
           [GENERAL_ROOM_KEYS.RULES]: {
@@ -221,6 +223,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
           [GENERAL_ROOM_KEYS.UID]: uid,
           [GENERAL_ROOM_KEYS.NAME]: userName,
           [PRIVATE_ROOM_KEYS.READY]: false,
+          [GENERAL_ROOM_KEYS.CONNECTION_STATE]: CONNECTION_STATES.CONNECTED,
         };
       } else {
         // 観戦者として入る場合の処理
@@ -530,6 +533,16 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
         return room;
       }
 
+      const bothConnected =
+        host[GENERAL_ROOM_KEYS.CONNECTION_STATE] === CONNECTION_STATES.CONNECTED &&
+        host[GENERAL_ROOM_KEYS.RECONNECT_DEADLINE] == null &&
+        guest[GENERAL_ROOM_KEYS.CONNECTION_STATE] === CONNECTION_STATES.CONNECTED &&
+        guest[GENERAL_ROOM_KEYS.RECONNECT_DEADLINE] == null;
+      if (!bothConnected) {
+        // ホスト・ゲストどちらか一方でも切断中ならば処理させない
+        return room;
+      }
+
       if (room[GENERAL_ROOM_KEYS.STATE] !== ROOM_STATES.PREPARING) {
         return room;
       }
@@ -618,6 +631,15 @@ export const markAsReady = onCall<MarkAsReadyRequest>(
           : null;
     if (finalPlayer == null) {
       throw new HttpsError("failed-precondition", "Invalid user.");
+    }
+
+    const finalBothConnected =
+      finalHost[GENERAL_ROOM_KEYS.CONNECTION_STATE] === CONNECTION_STATES.CONNECTED &&
+      finalHost[GENERAL_ROOM_KEYS.RECONNECT_DEADLINE] == null &&
+      finalGuest[GENERAL_ROOM_KEYS.CONNECTION_STATE] === CONNECTION_STATES.CONNECTED &&
+      finalGuest[GENERAL_ROOM_KEYS.RECONNECT_DEADLINE] == null;
+    if (!finalBothConnected) {
+      throw new HttpsError("failed-precondition", "Both of host and guest must be connected.");
     }
 
     if (finalPlayer[PRIVATE_ROOM_KEYS.READY] !== true) {

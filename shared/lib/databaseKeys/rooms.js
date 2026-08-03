@@ -13,12 +13,10 @@ export const GENERAL_ROOM_KEYS = {
     NAME: "name",
     SCORE: "score",
     MANA: "mana",
-    HAS_FINISHED_INTERLUDE: "hasFinishedInterlude",
     FINAL_WINNER_OF_MATCH: "finalWinnerOfMatch",
     GAME: "game",
     PHASE: "phase",
     HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline",
-    RECONNECT_DEADLINE: "reconnectDeadline",
     SUBMITTED_PLAYERS: "submittedPlayers",
     ROUND_NUMBER: "roundNumber",
     HANDS_OF: "handsOf",
@@ -31,6 +29,8 @@ export const GENERAL_ROOM_KEYS = {
     NEXT_PHASE_AT: "nextPhaseAt",
     CHEATER: "cheater",
     RESIGNER: "resigner",
+    CONNECTION_STATE: "connectionState",
+    RECONNECT_DEADLINE: "reconnectDeadline",
 };
 export const PRIVATE_ROOM_KEYS = {
     SPECTATORS: "spectators",
@@ -42,6 +42,9 @@ export const PRIVATE_ROOM_KEYS = {
 export const PRIVATE_ROOM_JOIN_CODE_KEYS = {
     ROOM_ID: "roomId",
     CREATED_AT: "createdAt",
+};
+export const PRIVATE_ROOM_PRESENCE_KEYS = {
+    CONNECTED_AT: "connectedAt",
 };
 export const DATABASE_PATHS_FOR_ROOMS = {
     privateRoomsRoot: () => ROOT_KEYS.PRIVATE_ROOMS,
@@ -68,8 +71,17 @@ export const DATABASE_PATHS_FOR_ROOMS = {
     resolvedGuestHand: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.GUEST}/${GENERAL_ROOM_KEYS.SELECTED_HAND}`,
     nextPhaseAt: (roomId, isPrivateMatch = false) => `${DATABASE_PATHS_FOR_ROOMS.resolvedRound(roomId, isPrivateMatch)}/${GENERAL_ROOM_KEYS.NEXT_PHASE_AT}`,
     guestIsKickedAt: (roomId) => `${DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)}/${PRIVATE_ROOM_KEYS.GUEST_IS_KICKED_AT}`,
+    privateRoomHostConnectionState: (roomId) => `${DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)}` +
+        `/${GENERAL_ROOM_KEYS.HOST}` +
+        `/${GENERAL_ROOM_KEYS.CONNECTION_STATE}`,
+    privateRoomGuestConnectionState: (roomId) => `${DATABASE_PATHS_FOR_ROOMS.privateRoom(roomId)}` +
+        `/${GENERAL_ROOM_KEYS.GUEST}` +
+        `/${GENERAL_ROOM_KEYS.CONNECTION_STATE}`,
     privateRoomJoinCode: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}`,
     privateRoomJoinCodeRoomId: (joinCodeHash) => `${ROOT_KEYS.PRIVATE_ROOM_JOIN_CODES}/${joinCodeHash}/${PRIVATE_ROOM_JOIN_CODE_KEYS.ROOM_ID}`,
     privateRoomConfidentialRoot: (roomId) => `${DATABASE_PATHS_FOR_ROOMS.privateRoomContainer(roomId)}/${GENERAL_ROOM_KEYS.CONFIDENTIAL}`,
     privateRoomConfidential: (roomId, roundNumber) => `${DATABASE_PATHS_FOR_ROOMS.privateRoomConfidentialRoot(roomId)}/${roundNumber}`,
+    privateRoomPresenceRoot: (roomId) => `${ROOT_KEYS.PRIVATE_ROOM_PRESENCE}/${roomId}`,
+    privateRoomPresenceOfUser: (roomId, uid) => `${DATABASE_PATHS_FOR_ROOMS.privateRoomPresenceRoot(roomId)}/${uid}`,
+    privateRoomConnection: (roomId, uid, connectionId) => `${DATABASE_PATHS_FOR_ROOMS.privateRoomPresenceOfUser(roomId, uid)}/${connectionId}`,
 };
