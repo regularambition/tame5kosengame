@@ -41,6 +41,10 @@ export function startPrivateRoomPresence(roomId: string) {
   });
 
   return async () => {
+    if (stopped) {
+      return;
+    }
+
     stopped = true;
     unsubscribe();
 

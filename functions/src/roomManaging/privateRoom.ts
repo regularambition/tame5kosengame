@@ -115,7 +115,7 @@ export const createPrivateRoom = onCall<CreatePrivateRoomRequest>(
             [GENERAL_ROOM_KEYS.UID]: hostUid,
             [GENERAL_ROOM_KEYS.NAME]: userName,
             [PRIVATE_ROOM_KEYS.READY]: false,
-            [GENERAL_ROOM_KEYS.CONNECTION_STATE]: CONNECTION_STATES.CONNECTED,
+            [GENERAL_ROOM_KEYS.CONNECTION_STATE]: CONNECTION_STATES.RECONNECTING,
           },
           [GENERAL_ROOM_KEYS.CREATED_AT]: ServerValue.TIMESTAMP,
           [GENERAL_ROOM_KEYS.RULES]: {
@@ -223,7 +223,7 @@ export const enterPrivateRoom = onCall<EnterPrivateRoomRequest>(
           [GENERAL_ROOM_KEYS.UID]: uid,
           [GENERAL_ROOM_KEYS.NAME]: userName,
           [PRIVATE_ROOM_KEYS.READY]: false,
-          [GENERAL_ROOM_KEYS.CONNECTION_STATE]: CONNECTION_STATES.CONNECTED,
+          [GENERAL_ROOM_KEYS.CONNECTION_STATE]: CONNECTION_STATES.RECONNECTING,
         };
       } else {
         // 観戦者として入る場合の処理

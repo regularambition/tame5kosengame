@@ -402,6 +402,7 @@ export function PrivateMatchScreen({
   const [guestIsKickedAt, setGuestIsKickedAt] = useState<number | null>(null);
   const [hostConnectionState, setHostConnectionState] = useState<ConnectionState | null>(null);
   const [guestConnectionState, setGuestConnectionState] = useState<ConnectionState | null>(null);
+  const stopPresenceRef = useRef<(() => Promise<void>) | null>(null);
 
   function buildMatchInfo(): MatchInfo {
     let role: RolesInBattleId = ROLES_IN_BATTLE.HOST_OF_PRIVATE_MATCH;
@@ -500,6 +501,7 @@ export function PrivateMatchScreen({
 
     try {
       stopPresence = startPrivateRoomPresence(roomId);
+      stopPresenceRef.current = stopPresence;
     } catch (error) {
       console.error(error);
       setErrorMessage("接続状態の登録に失敗しました");
@@ -513,11 +515,28 @@ export function PrivateMatchScreen({
     );
 
     return () => {
-      void stopPresence?.();
       unsubscribeHostConnectionState();
       unsubscribeGuestConnectionState();
+
+      // このEffectが登録したPresenceが現在も有効な場合だけ停止する
+      if (stopPresenceRef.current !== stopPresence) {
+        return;
+      }
+
+      stopPresenceRef.current = null;
+      void stopPresence();
     };
   }, [roomId, state]);
+
+  const stopCurrentPresence = async () => {
+    const stopPresence = stopPresenceRef.current;
+    if (stopPresence == null) {
+      return;
+    }
+
+    stopPresenceRef.current = null;
+    await stopPresence();
+  };
 
   useEffect(() => {
     const isInPrivateLobby = state === STATES.I_AM_HOST || state === STATES.I_AM_GUEST_OR_SPECTATOR;
@@ -548,6 +567,7 @@ export function PrivateMatchScreen({
 
       try {
         await deletePrivateRoom(roomId);
+        await stopCurrentPresence();
       } catch (error) {
         console.log(error);
         alert("部屋の解散に失敗しました");
@@ -568,6 +588,7 @@ export function PrivateMatchScreen({
 
       try {
         await leavePrivateRoom(isPlayer, roomId);
+        await stopCurrentPresence();
       } catch (error) {
         alert("退出に失敗しました");
         setIsBackProcessing(false);
