@@ -13,7 +13,7 @@ import {
   WINNER_DETECTION_RESULT,
 } from "@tame5kosengame/shared";
 import {FinishResolvedPhaseTask} from "../contracts";
-import {findBackToLobbyAt, findHandSubmissionDeadline} from "./timestampGenerator";
+import {findBackToLobbyAt, findHandSubmissionDeadline} from "../forCloudTasks";
 import {PHASE_TRANSITION_TASK_OPTIONS} from "../config";
 
 export const finishResolvedPhase = onTaskDispatched<FinishResolvedPhaseTask>(

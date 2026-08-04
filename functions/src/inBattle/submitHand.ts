@@ -20,7 +20,7 @@ import {
 } from "@tame5kosengame/shared";
 import type {HandId, SubmitHandRequest, SubmitHandResponse} from "@tame5kosengame/shared";
 import {ServerValue} from "firebase-admin/database";
-import {findBackToLobbyAt, findNextPhaseAt} from "./timestampGenerator";
+import {findBackToLobbyAt, findNextPhaseAt} from "../forCloudTasks";
 
 function findWinnerOfRound(hostHand: HandId, guestHand: HandId) {
   if (hostHand === guestHand) {

@@ -13,3 +13,7 @@ export function findHandSubmissionDeadline(thinkingTimeInSec: number) {
 export function findBackToLobbyAt() {
   return Date.now() + DURATION_IN_MILLI_SEC.PRIVATE_RESULT_DISPLAY;
 }
+
+export function findReconnectDeadline() {
+  return Date.now() + DURATION_IN_MILLI_SEC.RECONNECT_GRACE;
+}

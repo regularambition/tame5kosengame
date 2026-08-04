@@ -34,6 +34,8 @@ import {
   markAsReady,
   kickGuest,
   removeKickedGuestData,
+  handlePrivateRoomPresenceWritten,
+  handlePrivateLobbyDisconnect,
 } from "./roomManaging";
 import {
   submitHand,
@@ -46,6 +48,7 @@ import {
   enqueuePhaseTransitionTask,
   enqueueGoBackToLobbyTask,
   enqueueRemoveKickedGuestDataTask,
+  enqueuePrivateLobbyDisconnectTask,
 } from "./forCloudTasks";
 
 export {
@@ -63,9 +66,12 @@ export {
   resign,
   kickGuest,
   removeKickedGuestData,
+  handlePrivateRoomPresenceWritten,
+  handlePrivateLobbyDisconnect,
 
   // DBイベントからCloud Tasksを登録するFunction
   enqueuePhaseTransitionTask,
   enqueueGoBackToLobbyTask,
   enqueueRemoveKickedGuestDataTask,
+  enqueuePrivateLobbyDisconnectTask,
 };

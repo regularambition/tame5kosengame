@@ -12,12 +12,10 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly NAME: "name";
     readonly SCORE: "score";
     readonly MANA: "mana";
-    readonly HAS_FINISHED_INTERLUDE: "hasFinishedInterlude";
     readonly FINAL_WINNER_OF_MATCH: "finalWinnerOfMatch";
     readonly GAME: "game";
     readonly PHASE: "phase";
     readonly HAND_SUBMISSION_DEADLINE: "handSubmissionDeadline";
-    readonly RECONNECT_DEADLINE: "reconnectDeadline";
     readonly SUBMITTED_PLAYERS: "submittedPlayers";
     readonly ROUND_NUMBER: "roundNumber";
     readonly HANDS_OF: "handsOf";
@@ -30,6 +28,8 @@ export declare const GENERAL_ROOM_KEYS: {
     readonly NEXT_PHASE_AT: "nextPhaseAt";
     readonly CHEATER: "cheater";
     readonly RESIGNER: "resigner";
+    readonly CONNECTION_STATE: "connectionState";
+    readonly RECONNECT_DEADLINE: "reconnectDeadline";
 };
 export declare const PRIVATE_ROOM_KEYS: {
     readonly SPECTATORS: "spectators";
@@ -41,6 +41,9 @@ export declare const PRIVATE_ROOM_KEYS: {
 export declare const PRIVATE_ROOM_JOIN_CODE_KEYS: {
     readonly ROOM_ID: "roomId";
     readonly CREATED_AT: "createdAt";
+};
+export declare const PRIVATE_ROOM_PRESENCE_KEYS: {
+    readonly CONNECTED_AT: "connectedAt";
 };
 export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly privateRoomsRoot: () => "privateRooms";
@@ -67,8 +70,13 @@ export declare const DATABASE_PATHS_FOR_ROOMS: {
     readonly resolvedGuestHand: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly nextPhaseAt: (roomId: string, isPrivateMatch?: boolean) => string;
     readonly guestIsKickedAt: (roomId: string) => string;
+    readonly privateRoomHostConnectionState: (roomId: string) => string;
+    readonly privateRoomGuestConnectionState: (roomId: string) => string;
     readonly privateRoomJoinCode: (joinCodeHash: string) => string;
     readonly privateRoomJoinCodeRoomId: (joinCodeHash: string) => string;
     readonly privateRoomConfidentialRoot: (roomId: string) => string;
     readonly privateRoomConfidential: (roomId: string, roundNumber: number) => string;
+    readonly privateRoomPresenceRoot: (roomId: string) => string;
+    readonly privateRoomPresenceOfUser: (roomId: string, uid: string) => string;
+    readonly privateRoomConnection: (roomId: string, uid: string, connectionId: string) => string;
 };

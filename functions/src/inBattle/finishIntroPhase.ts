@@ -8,7 +8,7 @@ import {
   PRIVATE_ROOM_KEYS,
 } from "@tame5kosengame/shared";
 import {FinishIntroPhaseTask} from "../contracts";
-import {findHandSubmissionDeadline} from "./timestampGenerator";
+import {findHandSubmissionDeadline} from "../forCloudTasks";
 import {PHASE_TRANSITION_TASK_OPTIONS} from "../config";
 
 export const finishIntroPhase = onTaskDispatched<FinishIntroPhaseTask>(

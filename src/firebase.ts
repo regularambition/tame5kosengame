@@ -1,6 +1,6 @@
 import {initializeApp} from "firebase/app";
 import {getAuth} from "firebase/auth";
-import {getDatabase} from "firebase/database";
+import {getDatabase, goOffline, goOnline, onValue, ref} from "firebase/database";
 import {getFunctions} from "firebase/functions";
 import {httpsCallable} from "firebase/functions";
 
@@ -26,4 +26,23 @@ const functionsRegion = import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION;
 export const functions = getFunctions(app, functionsRegion);
 export function getCallableFunction<ARG, RET>(functionName: string) {
   return httpsCallable<ARG, RET>(functions, functionName);
+}
+
+// 切断された時の処理確認用（本番では使わない）
+if (import.meta.env.DEV) {
+  onValue(ref(database, ".info/connected"), (snapshot) => {
+    console.log(`[RTDB test] connected = ${snapshot.val() === true}`);
+  });
+
+  Object.assign(window, {
+    disconnectRealtimeDatabase: () => {
+      console.log("[RTDB test] Going offline...");
+      goOffline(database);
+    },
+
+    reconnectRealtimeDatabase: () => {
+      console.log("[RTDB test] Going online...");
+      goOnline(database);
+    },
+  });
 }
