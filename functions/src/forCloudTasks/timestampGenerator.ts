@@ -17,3 +17,7 @@ export function findBackToLobbyAt() {
 export function findReconnectDeadline() {
   return Date.now() + DURATION_IN_MILLI_SEC.RECONNECT_GRACE;
 }
+
+export function findActiveSessionReconnectDeadline() {
+  return Date.now() + DURATION_IN_MILLI_SEC.ACTIVE_SESSION_RECONNECT_GRACE;
+}

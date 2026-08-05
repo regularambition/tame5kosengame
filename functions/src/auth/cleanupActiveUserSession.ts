@@ -7,7 +7,10 @@ import {
   ACTIVE_USER_SESSION_KEYS,
   DATABASE_PATHS_FOR_ACTIVE_USER_SESSIONS,
 } from "@tame5kosengame/shared";
-import {enqueueExpireActiveUserSessionTask, findReconnectDeadline} from "../forCloudTasks";
+import {
+  enqueueExpireActiveUserSessionTask,
+  findActiveSessionReconnectDeadline,
+} from "../forCloudTasks";
 
 export const cleanupActiveUserSession = onValueDeleted(
   {
@@ -40,7 +43,8 @@ export const cleanupActiveUserSession = onValueDeleted(
 
       // 再試行で期限を後ろへ延ばさないため未登録の場合のみ書き込むようにする
       if (typeof currentSession[ACTIVE_USER_SESSION_KEYS.RECONNECT_DEADLINE] !== "number") {
-        currentSession[ACTIVE_USER_SESSION_KEYS.RECONNECT_DEADLINE] = findReconnectDeadline();
+        currentSession[ACTIVE_USER_SESSION_KEYS.RECONNECT_DEADLINE] =
+          findActiveSessionReconnectDeadline();
       }
 
       return currentSession;
