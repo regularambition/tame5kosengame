@@ -91,7 +91,7 @@ export async function startActiveUserSession(
   }
 
   let stopped = false;
-  let currentSessionRef: DatabaseReference | null = null;
+  let presenceIsActive = false;
   let isClaiming = false;
 
   let resolveInitialClaim!: () => void;
@@ -103,6 +103,18 @@ export async function startActiveUserSession(
     rejectInitialClaim = reject;
   });
 
+  const sessionRootRef = ref(
+    database,
+    DATABASE_PATHS_FOR_ACTIVE_USER_SESSIONS.activeUserSessionPresenceRoot(uid),
+  );
+
+  const nextSessionRef = push(sessionRootRef);
+  const sessionId = nextSessionRef.key;
+
+  if (!sessionId) {
+    throw new Error("Failed to generate session ID.");
+  }
+
   const connectedRef = ref(database, PRIMITIVE_RTDB_PATHS.CONNECTED);
 
   const unsubscribe = onValue(connectedRef, async (snapshot) => {
@@ -112,33 +124,18 @@ export async function startActiveUserSession(
 
     if (snapshot.val() !== true) {
       // onDisconnectによってサーバー側のセッションは削除される
-      currentSessionRef = null;
+      presenceIsActive = false;
       return;
     }
 
-    if (currentSessionRef != null || isClaiming) {
+    if (presenceIsActive || isClaiming) {
       return;
     }
 
     isClaiming = true;
 
-    const sessionRootRef = ref(
-      database,
-      DATABASE_PATHS_FOR_ACTIVE_USER_SESSIONS.activeUserSessionPresenceRoot(uid),
-    );
-
-    const nextSessionRef = push(sessionRootRef);
-
     try {
       // 書き込む前に切断時削除を予約する
-      await onDisconnect(nextSessionRef).remove();
-
-      const sessionId = nextSessionRef.key;
-
-      if (!sessionId) {
-        throw new Error("Failed to generate session ID.");
-      }
-
       const disconnectOperation = onDisconnect(nextSessionRef);
       await disconnectOperation.remove();
 
@@ -154,7 +151,7 @@ export async function startActiveUserSession(
         return;
       }
 
-      currentSessionRef = nextSessionRef;
+      presenceIsActive = true;
 
       if (!initialClaimSettled) {
         initialClaimSettled = true;
@@ -198,12 +195,11 @@ export async function startActiveUserSession(
     stopped = true;
     unsubscribe();
 
-    const sessionRef = currentSessionRef;
-    currentSessionRef = null;
+    const disconnectOperation = onDisconnect(nextSessionRef);
 
-    if (sessionRef != null) {
-      await onDisconnect(sessionRef).cancel();
-      await remove(sessionRef);
-    }
+    await disconnectOperation.cancel();
+    await remove(nextSessionRef);
+
+    presenceIsActive = false;
   };
 }

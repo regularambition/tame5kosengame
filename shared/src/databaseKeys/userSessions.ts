@@ -4,6 +4,7 @@ export const ACTIVE_USER_SESSION_KEYS = {
   SESSION_ID: "sessionId",
   CLAIMED_AT: "claimedAt",
   CONNECTED_AT: "connectedAt",
+  RECONNECT_DEADLINE: "reconnectDeadline",
 } as const;
 
 export const DATABASE_PATHS_FOR_ACTIVE_USER_SESSIONS = {

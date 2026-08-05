@@ -7,6 +7,7 @@ import {
   ACTIVE_USER_SESSION_KEYS,
   DATABASE_PATHS_FOR_ACTIVE_USER_SESSIONS,
 } from "@tame5kosengame/shared";
+import {enqueueExpireActiveUserSessionTask, findReconnectDeadline} from "../forCloudTasks";
 
 export const cleanupActiveUserSession = onValueDeleted(
   {
@@ -27,7 +28,7 @@ export const cleanupActiveUserSession = onValueDeleted(
 
     const activeSessionRef = db.ref(DATABASE_PATHS_FOR_ACTIVE_USER_SESSIONS.activeUserSession(uid));
 
-    await activeSessionRef.transaction((currentSession) => {
+    const result = await activeSessionRef.transaction((currentSession) => {
       if (currentSession == null) {
         return currentSession;
       }
@@ -37,7 +38,21 @@ export const cleanupActiveUserSession = onValueDeleted(
         return currentSession;
       }
 
-      return null;
+      // 再試行で期限を後ろへ延ばさないため未登録の場合のみ書き込むようにする
+      if (typeof currentSession[ACTIVE_USER_SESSION_KEYS.RECONNECT_DEADLINE] !== "number") {
+        currentSession[ACTIVE_USER_SESSION_KEYS.RECONNECT_DEADLINE] = findReconnectDeadline();
+      }
+
+      return currentSession;
     });
+
+    const finalActiveSession = result.snapshot.val();
+    const finalSessionId = finalActiveSession[ACTIVE_USER_SESSION_KEYS.SESSION_ID];
+    const finalReconnectDeadline = finalActiveSession[ACTIVE_USER_SESSION_KEYS.RECONNECT_DEADLINE];
+    if (finalSessionId !== sessionId || typeof finalReconnectDeadline !== "number") {
+      return;
+    }
+
+    await enqueueExpireActiveUserSessionTask(uid, sessionId, finalReconnectDeadline);
   },
 );

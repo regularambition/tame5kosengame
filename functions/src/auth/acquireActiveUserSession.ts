@@ -33,7 +33,6 @@ export const acquireActiveUserSession = onCall<AcquireActiveUserSessionRequest>(
     );
 
     const presenceSnapshot = await presenceRef.get();
-
     if (!presenceSnapshot.exists()) {
       throw new HttpsError("failed-precondition", "Session presence does not exist.");
     }
@@ -48,12 +47,14 @@ export const acquireActiveUserSession = onCall<AcquireActiveUserSessionRequest>(
         };
       }
 
-      // 同じセッションからの再試行・再接続は成功扱い
-      if (currentSession[ACTIVE_USER_SESSION_KEYS.SESSION_ID] === sessionId) {
+      const currentSessionId = currentSession[ACTIVE_USER_SESSION_KEYS.SESSION_ID];
+      if (currentSessionId !== sessionId) {
+        // 別セッションで既に接続中の場合はtransactionブロック後に失敗扱いとする
         return currentSession;
       }
 
-      // 別セッションで既に接続中の場合はtransactionブロック後に失敗扱いとする
+      // 同じセッションからの再試行・再接続は成功扱いとして再接続期限も消す
+      delete currentSession[ACTIVE_USER_SESSION_KEYS.RECONNECT_DEADLINE];
       return currentSession;
     });
 
@@ -65,7 +66,8 @@ export const acquireActiveUserSession = onCall<AcquireActiveUserSessionRequest>(
       throw new HttpsError("internal", "Database is broken(game session).");
     }
 
-    const finalSessionId = result.snapshot.child(ACTIVE_USER_SESSION_KEYS.SESSION_ID).val();
+    const finalActiveSession = result.snapshot.val();
+    const finalSessionId = finalActiveSession[ACTIVE_USER_SESSION_KEYS.SESSION_ID];
     if (finalSessionId !== sessionId) {
       throw new HttpsError("already-exists", "Another game session is already active.");
     }

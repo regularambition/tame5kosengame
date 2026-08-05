@@ -30,6 +30,7 @@ import {
   updateUserName,
   acquireActiveUserSession,
   cleanupActiveUserSession,
+  expireActiveUserSession,
 } from "./auth";
 import {
   createPrivateRoom,
@@ -62,6 +63,7 @@ export {
   updateUserName,
   acquireActiveUserSession,
   cleanupActiveUserSession,
+  expireActiveUserSession,
 
   // プライベートマッチ部屋関連
   createPrivateRoom,
