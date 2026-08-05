@@ -4,4 +4,5 @@ export declare const DURATION_IN_MILLI_SEC: {
     readonly PRIVATE_RESULT_DISPLAY: 10000;
     readonly RECONNECT_GRACE: 30000;
     readonly KICKING_INTERVAL: 5000;
+    readonly ACTIVE_SESSION_RECONNECT_GRACE: 10000;
 };

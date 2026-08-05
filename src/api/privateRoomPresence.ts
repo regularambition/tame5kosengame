@@ -1,7 +1,11 @@
 import {onDisconnect, onValue, push, ref, remove, serverTimestamp, set} from "firebase/database";
 
 import {auth, database} from "../firebase";
-import {DATABASE_PATHS_FOR_ROOMS, PRIVATE_ROOM_PRESENCE_KEYS} from "@tame5kosengame/shared";
+import {
+  DATABASE_PATHS_FOR_ROOMS,
+  PRIMITIVE_RTDB_PATHS,
+  PRIVATE_ROOM_PRESENCE_KEYS,
+} from "@tame5kosengame/shared";
 
 export function startPrivateRoomPresence(roomId: string) {
   const uid = auth.currentUser?.uid;
@@ -9,7 +13,7 @@ export function startPrivateRoomPresence(roomId: string) {
     throw new Error("Authentication required.");
   }
 
-  const connectedRef = ref(database, ".info/connected");
+  const connectedRef = ref(database, PRIMITIVE_RTDB_PATHS.CONNECTED);
   let activeConnectionRef: ReturnType<typeof ref> | null = null;
   let stopped = false;
 

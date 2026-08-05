@@ -9,3 +9,4 @@ export * from "./initializeAfterIntro.js";
 export * from "./submitHand.js";
 export * from "./resign.js";
 export * from "./kickGuest.js";
+export * from "./acquireActiveUserSession.js";
