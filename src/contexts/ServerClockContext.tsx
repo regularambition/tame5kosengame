@@ -9,6 +9,7 @@ import {
 } from "react";
 import {onValue, ref} from "firebase/database";
 import {database} from "../firebase";
+import {PRIMITIVE_RTDB_PATHS} from "@tame5kosengame/shared";
 
 type ClockAnchor = {
   serverTimeMs: number;
@@ -31,7 +32,7 @@ export function ServerClockProvider({children}: {children: ReactNode}) {
     console.log("time offset setting called");
     console.log("##########");
 
-    const offsetRef = ref(database, ".info/serverTimeOffset");
+    const offsetRef = ref(database, PRIMITIVE_RTDB_PATHS.SERVER_TIME_OFFSET);
 
     return onValue(offsetRef, (snapshot) => {
       const offset = snapshot.val();

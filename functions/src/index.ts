@@ -25,7 +25,12 @@
 // this will be the maximum concurrent request count.
 import "./config/globalOptions";
 
-import {ensureUserProfile, updateUserName} from "./auth/anonymousSignin";
+import {
+  ensureUserProfile,
+  updateUserName,
+  acquireActiveUserSession,
+  cleanupActiveUserSession,
+} from "./auth";
 import {
   createPrivateRoom,
   enterPrivateRoom,
@@ -52,8 +57,13 @@ import {
 } from "./forCloudTasks";
 
 export {
+  // 匿名認証・排他セッション系
   ensureUserProfile,
   updateUserName,
+  acquireActiveUserSession,
+  cleanupActiveUserSession,
+
+  // プライベートマッチ部屋関連
   createPrivateRoom,
   enterPrivateRoom,
   leavePrivateRoom,

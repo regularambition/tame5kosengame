@@ -1,3 +1,4 @@
+import {PRIMITIVE_RTDB_PATHS} from "@tame5kosengame/shared";
 import {initializeApp} from "firebase/app";
 import {getAuth} from "firebase/auth";
 import {getDatabase, goOffline, goOnline, onValue, ref} from "firebase/database";
@@ -30,7 +31,7 @@ export function getCallableFunction<ARG, RET>(functionName: string) {
 
 // 切断された時の処理確認用（本番では使わない）
 if (import.meta.env.DEV) {
-  onValue(ref(database, ".info/connected"), (snapshot) => {
+  onValue(ref(database, PRIMITIVE_RTDB_PATHS.CONNECTED), (snapshot) => {
     console.log(`[RTDB test] connected = ${snapshot.val() === true}`);
   });
 
