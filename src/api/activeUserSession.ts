@@ -96,7 +96,7 @@ export async function startActiveUserSession(
 
   let resolveInitialClaim!: () => void;
   let rejectInitialClaim!: (error: unknown) => void;
-  let initialClaimSettled = false;
+  let initialClaimResultHasBeenReported = false;
 
   const initialClaim = new Promise<void>((resolve, reject) => {
     resolveInitialClaim = resolve;
@@ -153,8 +153,8 @@ export async function startActiveUserSession(
 
       presenceIsActive = true;
 
-      if (!initialClaimSettled) {
-        initialClaimSettled = true;
+      if (!initialClaimResultHasBeenReported) {
+        initialClaimResultHasBeenReported = true;
         resolveInitialClaim();
       }
     } catch (error) {
@@ -166,8 +166,8 @@ export async function startActiveUserSession(
         console.error("Failed to remove session presence.", cleanupError);
       }
 
-      if (!initialClaimSettled) {
-        initialClaimSettled = true;
+      if (!initialClaimResultHasBeenReported) {
+        initialClaimResultHasBeenReported = true;
         rejectInitialClaim(error);
         return;
       }
