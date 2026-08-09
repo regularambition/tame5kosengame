@@ -18,7 +18,6 @@ import {
   watchConnectionState,
 } from "../api/watchPrivateRoom";
 import {markAsReady} from "../api/markAsReady";
-import {startPrivateRoomPresence} from "../api/privateRoomPresence";
 
 import {
   isValidJoinCode,
@@ -41,6 +40,9 @@ type PrivateMatchScreenProps = {
   onBackToTop: () => void;
   userName: string;
   onStartBattle: (nextMatchInfo: MatchInfo) => void;
+  onPrivateRoomMembershipStarted: (roomId: string) => void;
+  onPrivateRoomMembershipEnded: () => void;
+  privateRoomConnectionId: string;
 };
 
 const STATES = {
@@ -141,6 +143,7 @@ type WaitingForGuestDivProps = {
   errorMessage: string;
   guestIsKickedAt: number | null;
   guestConnectionState: ConnectionState | null;
+  privateRoomConnectionId: string;
 };
 
 function WaitingForGuestDiv({
@@ -154,6 +157,7 @@ function WaitingForGuestDiv({
   errorMessage,
   guestIsKickedAt,
   guestConnectionState,
+  privateRoomConnectionId,
 }: WaitingForGuestDivProps) {
   const [copyAnnotation, setCopyAnnotation] = useState<string>("");
 
@@ -207,7 +211,11 @@ function WaitingForGuestDiv({
         <ButtonRow>
           <Button
             onClick={onFinishPreparing}
-            disabled={isReadyToFight || guestConnectionState !== CONNECTION_STATES.CONNECTED}
+            disabled={
+              isReadyToFight ||
+              guestConnectionState !== CONNECTION_STATES.CONNECTED ||
+              privateRoomConnectionId.length === 0
+            }
           >
             {guestConnectionState !== CONNECTION_STATES.CONNECTED
               ? "ゲストの復帰待機中"
@@ -280,6 +288,7 @@ type WaitingForHostOperationDivProps = {
   guestIsKickedAt: number | null;
   onBeingKickedAsGuest: () => void;
   hostConnectionState: ConnectionState | null;
+  privateRoomConnectionId: string;
 };
 
 function WaitingForHostOperationDiv({
@@ -294,6 +303,7 @@ function WaitingForHostOperationDiv({
   guestIsKickedAt,
   onBeingKickedAsGuest,
   hostConnectionState,
+  privateRoomConnectionId,
 }: WaitingForHostOperationDivProps) {
   if (isPlayer) {
     // 追い出しの対象となり得るのはゲストのみ
@@ -315,7 +325,11 @@ function WaitingForHostOperationDiv({
       {isPlayer && (
         <Button
           onClick={onFinishPreparing}
-          disabled={isReadyToFight || hostConnectionState !== CONNECTION_STATES.CONNECTED}
+          disabled={
+            isReadyToFight ||
+            hostConnectionState !== CONNECTION_STATES.CONNECTED ||
+            privateRoomConnectionId.length === 0
+          }
         >
           {hostConnectionState !== CONNECTION_STATES.CONNECTED ? "ホストの復帰待機中" : "準備完了"}
         </Button>
@@ -375,6 +389,9 @@ export function PrivateMatchScreen({
   onBackToTop,
   userName,
   onStartBattle,
+  onPrivateRoomMembershipStarted,
+  onPrivateRoomMembershipEnded,
+  privateRoomConnectionId,
 }: PrivateMatchScreenProps) {
   const findInitialState = () => {
     if (matchInfo.roomId.length === 0) {
@@ -402,7 +419,6 @@ export function PrivateMatchScreen({
   const [guestIsKickedAt, setGuestIsKickedAt] = useState<number | null>(null);
   const [hostConnectionState, setHostConnectionState] = useState<ConnectionState | null>(null);
   const [guestConnectionState, setGuestConnectionState] = useState<ConnectionState | null>(null);
-  const stopPresenceRef = useRef<(() => Promise<void>) | null>(null);
 
   function buildMatchInfo(): MatchInfo {
     let role: RolesInBattleId = ROLES_IN_BATTLE.HOST_OF_PRIVATE_MATCH;
@@ -427,6 +443,7 @@ export function PrivateMatchScreen({
   useEffect(() => {
     const watchPrivateRoomStateArg = (st: RoomState) => {
       if (st === ROOM_STATES.CLOSED) {
+        onPrivateRoomMembershipEnded();
         setState(STATES.AFTER_KICK_OR_DISBAND);
       }
     };
@@ -497,16 +514,6 @@ export function PrivateMatchScreen({
       return;
     }
 
-    let stopPresence: (() => Promise<void>) | undefined;
-
-    try {
-      stopPresence = startPrivateRoomPresence(roomId);
-      stopPresenceRef.current = stopPresence;
-    } catch (error) {
-      console.error(error);
-      setErrorMessage("接続状態の登録に失敗しました");
-    }
-
     const unsubscribeHostConnectionState = watchConnectionState(roomId, setHostConnectionState);
     const unsubscribeGuestConnectionState = watchConnectionState(
       roomId,
@@ -517,26 +524,8 @@ export function PrivateMatchScreen({
     return () => {
       unsubscribeHostConnectionState();
       unsubscribeGuestConnectionState();
-
-      // このEffectが登録したPresenceが現在も有効な場合だけ停止する
-      if (stopPresenceRef.current !== stopPresence) {
-        return;
-      }
-
-      stopPresenceRef.current = null;
-      void stopPresence();
     };
   }, [roomId, state]);
-
-  const stopCurrentPresence = async () => {
-    const stopPresence = stopPresenceRef.current;
-    if (stopPresence == null) {
-      return;
-    }
-
-    stopPresenceRef.current = null;
-    await stopPresence();
-  };
 
   useEffect(() => {
     const isInPrivateLobby = state === STATES.I_AM_HOST || state === STATES.I_AM_GUEST_OR_SPECTATOR;
@@ -567,7 +556,7 @@ export function PrivateMatchScreen({
 
       try {
         await deletePrivateRoom(roomId);
-        await stopCurrentPresence();
+        onPrivateRoomMembershipEnded();
       } catch (error) {
         console.log(error);
         alert("部屋の解散に失敗しました");
@@ -588,7 +577,7 @@ export function PrivateMatchScreen({
 
       try {
         await leavePrivateRoom(isPlayer, roomId);
-        await stopCurrentPresence();
+        onPrivateRoomMembershipEnded();
       } catch (error) {
         alert("退出に失敗しました");
         setIsBackProcessing(false);
@@ -630,6 +619,8 @@ export function PrivateMatchScreen({
       setJoinCode(joinCode);
       console.log(`roomId = ${roomId}`);
       setRoomId(roomId);
+
+      onPrivateRoomMembershipStarted(roomId);
     } catch (error) {
       setErrorMessage("部屋の作成に失敗しました");
       setIsCreatingRoom(false);
@@ -665,6 +656,8 @@ export function PrivateMatchScreen({
       setMatchPoint(matchPoint);
       setThinkingTime(thinkingTime);
       setHostName(hostName);
+
+      onPrivateRoomMembershipStarted(roomId);
     } catch (error) {
       setErrorMessage("部屋が見つかりませんでした");
       setIsEntering(false);
@@ -694,6 +687,11 @@ export function PrivateMatchScreen({
       setIsReadyToFight(false);
       setErrorMessage("準備完了通知に失敗しました");
     }
+  };
+
+  const handleBeingKickedAsGuest = () => {
+    onPrivateRoomMembershipEnded();
+    setState(STATES.AFTER_KICK_OR_DISBAND);
   };
 
   return (
@@ -734,6 +732,7 @@ export function PrivateMatchScreen({
           errorMessage={errorMessage}
           guestIsKickedAt={guestIsKickedAt}
           guestConnectionState={guestConnectionState}
+          privateRoomConnectionId={privateRoomConnectionId}
         />
       )}
       {state === STATES.ENTERING_JOIN_CODE && (
@@ -758,10 +757,9 @@ export function PrivateMatchScreen({
           isReadyToFight={isReadyToFight}
           errorMessage={errorMessage}
           guestIsKickedAt={guestIsKickedAt}
-          onBeingKickedAsGuest={() => {
-            setState(STATES.AFTER_KICK_OR_DISBAND);
-          }}
+          onBeingKickedAsGuest={handleBeingKickedAsGuest}
           hostConnectionState={hostConnectionState}
+          privateRoomConnectionId={privateRoomConnectionId}
         />
       )}
       {state === STATES.AFTER_KICK_OR_DISBAND && (

@@ -703,6 +703,7 @@ type InBattleScreenProps = {
   matchInfo: MatchInfo;
   onBackToPrivateLobby: () => void;
   onLeaveAsSpectator: () => void;
+  privateRoomConnectionId: string;
 };
 export function InBattleScreen({
   matchInfo,

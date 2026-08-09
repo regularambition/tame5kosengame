@@ -20,6 +20,11 @@ import {DEFAULT_MATCH_INFO, MatchInfo} from "./types/MatchInfo";
 
 import {AlreadyLoggedInError, startActiveUserSession} from "./api/activeUserSession";
 
+import {startPrivateRoomPresence} from "./api/privateRoomPresence";
+
+import type {PrivateRoomPresenceController} from "./types/PrivateRoomPresenceController";
+import {isValidPushId} from "@tame5kosengame/shared";
+
 function loadGameSettings(): GameSettings {
   const savedSettings = localStorage.getItem(GAME_SETTINGS_STORAGE_KEY);
 
@@ -49,6 +54,15 @@ function App() {
 
   const [matchInfo, setMatchInfo] = useState<MatchInfo>(DEFAULT_MATCH_INFO);
   const stopActiveSessionRef = useRef<(() => Promise<void>) | null>(null);
+
+  const [privateRoomPresenceRoomId, setPrivateRoomPresenceRoomId] = useState("");
+  const privateRoomPresenceControllerRef = useRef<PrivateRoomPresenceController | null>(null);
+  const [privateRoomConnectionId, setPrivateRoomConnectionId] = useState("");
+
+  useEffect(() => {
+    console.log(`privateRoomPresenceRoomId = ${privateRoomPresenceRoomId}`);
+    console.log(`privateRoomConnectionId = ${privateRoomConnectionId}`);
+  }, [privateRoomPresenceRoomId, privateRoomConnectionId]);
 
   const handleStart = async () => {
     if (isAuthenticating) {
@@ -115,6 +129,57 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isValidPushId(privateRoomPresenceRoomId)) {
+      return;
+    }
+
+    let disposed = false;
+    let startedController: PrivateRoomPresenceController | null = null;
+
+    void (async () => {
+      try {
+        const controller = await startPrivateRoomPresence(privateRoomPresenceRoomId);
+
+        if (disposed) {
+          await controller.stop();
+          return;
+        }
+
+        startedController = controller;
+        privateRoomPresenceControllerRef.current = controller;
+
+        setPrivateRoomConnectionId(controller.connectionId);
+      } catch (error) {
+        console.error("Failed to start private room presence.", error);
+
+        if (!disposed) {
+          setPrivateRoomConnectionId("");
+        }
+      }
+    })();
+
+    return () => {
+      disposed = true;
+
+      if (
+        startedController == null ||
+        privateRoomPresenceControllerRef.current !== startedController
+      ) {
+        return;
+      }
+
+      privateRoomPresenceControllerRef.current = null;
+      setPrivateRoomConnectionId("");
+
+      void startedController.stop();
+    };
+  }, [privateRoomPresenceRoomId]);
+
+  const handlePrivateRoomMembershipEnded = () => {
+    setPrivateRoomPresenceRoomId("");
+  };
+
   const handleRegisterName = async (name: string) => {
     const currentUser = auth.currentUser;
 
@@ -175,6 +240,7 @@ function App() {
       <PrivateMatchScreen
         matchInfo={matchInfo}
         onBackToTop={() => {
+          handlePrivateRoomMembershipEnded();
           setMatchInfo(DEFAULT_MATCH_INFO);
           setScreen(SCREEN_NAMES.TOP);
         }}
@@ -183,6 +249,11 @@ function App() {
           setMatchInfo(nextMatchInfo);
           setScreen(SCREEN_NAMES.IN_BATTLE);
         }}
+        onPrivateRoomMembershipStarted={(roomId) => {
+          setPrivateRoomPresenceRoomId(roomId);
+        }}
+        onPrivateRoomMembershipEnded={handlePrivateRoomMembershipEnded}
+        privateRoomConnectionId={privateRoomConnectionId}
       />
     );
   }
@@ -193,9 +264,11 @@ function App() {
         matchInfo={matchInfo}
         onBackToPrivateLobby={() => setScreen(SCREEN_NAMES.PRIVATE_MATCH)}
         onLeaveAsSpectator={() => {
+          handlePrivateRoomMembershipEnded();
           setMatchInfo(DEFAULT_MATCH_INFO);
           setScreen(SCREEN_NAMES.PRIVATE_MATCH);
         }}
+        privateRoomConnectionId={privateRoomConnectionId}
       />
     );
   }
